@@ -5,6 +5,7 @@ import { getCurrentTime, calculateTimeDifference, sortScheduleByTime } from '../
 interface ScheduleTimelineProps {
   schedule: ScheduleItem[];
   onStatusChange: (id: string, status: 'pending' | 'in_progress' | 'completed') => void;
+  selectedProductId: string | null;
 }
 
 const statusConfig = {
@@ -14,7 +15,7 @@ const statusConfig = {
   overdue: { icon: AlertTriangle, color: 'bg-red-200 text-red-600', bg: 'bg-red-50', border: 'border-red-300' },
 };
 
-export default function ScheduleTimeline({ schedule, onStatusChange }: ScheduleTimelineProps) {
+export default function ScheduleTimeline({ schedule, onStatusChange, selectedProductId }: ScheduleTimelineProps) {
   const referenceTime = getCurrentTime();
   const sortedSchedule = sortScheduleByTime(schedule, referenceTime);
 
@@ -92,7 +93,11 @@ export default function ScheduleTimeline({ schedule, onStatusChange }: ScheduleT
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-lg border ${style.border} ${style.bg} transition-all hover:shadow-md`}>
+                <div className={`p-4 rounded-lg border transition-all hover:shadow-md ${
+                  selectedProductId === item.productId
+                    ? 'ring-2 ring-blue-500 ring-offset-2 border-blue-400 bg-blue-50'
+                    : `${style.border} ${style.bg}`
+                }`}>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">

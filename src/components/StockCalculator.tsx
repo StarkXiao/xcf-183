@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Package, TrendingDown, AlertTriangle } from 'lucide-react';
 import type { Product } from '../types';
 
@@ -10,6 +10,15 @@ interface StockCalculatorProps {
 
 export default function StockCalculator({ products, selectedProduct, onReplenish }: StockCalculatorProps) {
   const [replenishAmount, setReplenishAmount] = useState(0);
+
+  useEffect(() => {
+    if (selectedProduct) {
+      const suggestedAmount = selectedProduct.maxStock - selectedProduct.stock;
+      setReplenishAmount(suggestedAmount);
+    } else {
+      setReplenishAmount(0);
+    }
+  }, [selectedProduct]);
 
   const lowStockProducts = products.filter(p => p.stock < p.maxStock * 0.3);
   const expiringProducts = products.filter(p => p.expirationDate && new Date(p.expirationDate) <= new Date());

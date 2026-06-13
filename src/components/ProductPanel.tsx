@@ -5,6 +5,7 @@ import type { Product } from '../types';
 interface ProductPanelProps {
   products: Product[];
   onProductSelect: (product: Product) => void;
+  selectedProductId?: string | null;
 }
 
 const categoryConfig = {
@@ -13,7 +14,7 @@ const categoryConfig = {
   expiring: { label: '临期商品', icon: Clock, color: 'bg-red-100 text-red-700' },
 };
 
-export default function ProductPanel({ products, onProductSelect }: ProductPanelProps) {
+export default function ProductPanel({ products, onProductSelect, selectedProductId }: ProductPanelProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -75,8 +76,12 @@ export default function ProductPanel({ products, onProductSelect }: ProductPanel
             <div
               key={product.id}
               onClick={() => onProductSelect(product)}
-              className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md hover:border-blue-300 ${
-                isExpiring ? 'border-red-200 bg-red-50' : 'border-gray-100'
+              className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
+                selectedProductId === product.id
+                  ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50 shadow-md'
+                  : isExpiring
+                  ? 'border-red-200 bg-red-50 hover:border-blue-300'
+                  : 'border-gray-100 hover:border-blue-300'
               }`}
             >
               <div className="flex items-start justify-between">
