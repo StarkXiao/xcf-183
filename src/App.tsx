@@ -52,7 +52,7 @@ export default function App() {
     ));
 
     setSchedule(prev => prev.map(item => 
-      item.productId === productId && item.status === 'in_progress'
+      item.productId === productId && item.status !== 'completed'
         ? { ...item, status: 'completed' as const }
         : item
     ));
