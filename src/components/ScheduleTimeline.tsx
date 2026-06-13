@@ -1,6 +1,6 @@
 import { Clock, CheckCircle2, Circle, PlayCircle, AlertTriangle, Clock3 } from 'lucide-react';
 import type { ScheduleItem } from '../types';
-import { timeToMinutes, getCurrentTime, calculateTimeDifference } from '../utils/scheduleUtils';
+import { getCurrentTime, calculateTimeDifference, sortScheduleByTime } from '../utils/scheduleUtils';
 
 interface ScheduleTimelineProps {
   schedule: ScheduleItem[];
@@ -15,7 +15,8 @@ const statusConfig = {
 };
 
 export default function ScheduleTimeline({ schedule, onStatusChange }: ScheduleTimelineProps) {
-  const sortedSchedule = [...schedule].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+  const referenceTime = getCurrentTime();
+  const sortedSchedule = sortScheduleByTime(schedule, referenceTime);
 
   const getNextStatus = (current: 'pending' | 'in_progress' | 'completed') => {
     if (current === 'pending') return 'in_progress';
@@ -33,7 +34,7 @@ export default function ScheduleTimeline({ schedule, onStatusChange }: ScheduleT
   const formatDelayTime = (item: ScheduleItem) => {
     if (!item.isOverdue) return null;
     const now = getCurrentTime();
-    const delayMinutes = calculateTimeDifference(now, item.originalTime);
+    const delayMinutes = calculateTimeDifference(now, item.originalTime, now);
     if (delayMinutes < 1) return null;
     if (delayMinutes < 60) return `已逾期 ${delayMinutes} 分钟`;
     const hours = Math.floor(delayMinutes / 60);
