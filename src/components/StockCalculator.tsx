@@ -5,9 +5,10 @@ import type { Product } from '../types';
 interface StockCalculatorProps {
   products: Product[];
   selectedProduct: Product | null;
+  onReplenish: (productId: string, amount: number) => void;
 }
 
-export default function StockCalculator({ products, selectedProduct }: StockCalculatorProps) {
+export default function StockCalculator({ products, selectedProduct, onReplenish }: StockCalculatorProps) {
   const [replenishAmount, setReplenishAmount] = useState(0);
 
   const lowStockProducts = products.filter(p => p.stock < p.maxStock * 0.3);
@@ -22,8 +23,8 @@ export default function StockCalculator({ products, selectedProduct }: StockCalc
 
   const handleReplenish = () => {
     if (selectedProduct && replenishAmount > 0) {
-      const newStock = selectedProduct.stock + replenishAmount;
-      alert(`补货成功！${selectedProduct.name} 库存从 ${selectedProduct.stock} 增加到 ${newStock}`);
+      onReplenish(selectedProduct.id, replenishAmount);
+      setReplenishAmount(0);
     }
   };
 

@@ -9,7 +9,7 @@ import type { Product, ScheduleItem, Reminder, Statistics } from './types';
 import { mockProducts, mockSchedule, mockReminders } from './data/mockData';
 
 export default function App() {
-  const [products] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>(mockProducts);
   const [schedule, setSchedule] = useState<ScheduleItem[]>(mockSchedule);
   const [reminders, setReminders] = useState<Reminder[]>(mockReminders);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -42,6 +42,26 @@ export default function App() {
 
   const handleDismissReminder = (id: string) => {
     setReminders(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleStockUpdate = (productId: string, amount: number) => {
+    setProducts(prev => prev.map(product => 
+      product.id === productId 
+        ? { ...product, stock: Math.min(product.stock + amount, product.maxStock) }
+        : product
+    ));
+
+    setSchedule(prev => prev.map(item => 
+      item.productId === productId && item.status === 'in_progress'
+        ? { ...item, status: 'completed' as const }
+        : item
+    ));
+
+    const updatedProduct = products.find(p => p.id === productId);
+    if (updatedProduct) {
+      const newStock = Math.min(updatedProduct.stock + amount, updatedProduct.maxStock);
+      setSelectedProduct({ ...updatedProduct, stock: newStock });
+    }
   };
 
   const toggleReminders = () => {
@@ -93,6 +113,7 @@ export default function App() {
             <StockCalculator 
               products={products} 
               selectedProduct={selectedProduct} 
+              onReplenish={handleStockUpdate}
             />
           </div>
         </div>
