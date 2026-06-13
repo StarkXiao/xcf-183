@@ -14,7 +14,7 @@ import {
   generateOverdueReminders,
   calculateTotalEstimatedFinishTime,
 } from './utils/scheduleUtils';
-import { getExpiryStatistics } from './utils/expiryUtils';
+import { getExpiryStatistics, generateExpiryReminders } from './utils/expiryUtils';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -42,10 +42,16 @@ export default function App() {
   }, [reminders]);
 
   useEffect(() => {
+    const initialReminders = generateExpiryReminders(products, mockReminders);
+    setReminders(initialReminders);
     checkAndUpdateSchedule();
     const interval = setInterval(checkAndUpdateSchedule, 30000);
     return () => clearInterval(interval);
-  }, [checkAndUpdateSchedule]);
+  }, []);
+
+  useEffect(() => {
+    setReminders(prev => generateExpiryReminders(products, prev));
+  }, [products]);
 
   const statistics = useMemo<Statistics>(() => {
     const lowStockCount = products.filter(p => p.stock < p.maxStock * 0.3).length;

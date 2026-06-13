@@ -38,13 +38,5 @@ export const mockSchedule: ScheduleItem[] = [
 
 export const mockReminders: Reminder[] = [
   { id: 'r1', productId: '4', productName: '怡宝矿泉水 555ml', message: '库存不足，当前库存: 5', time: '22:00', type: 'low_stock' },
-  { id: 'r2', productId: '15', productName: '酸奶-原味', message: '今日过期，仅剩 0 天，请紧急处理', time: '22:00', type: 'expiring', expiryLevel: 'critical' },
-  { id: 'r3', productId: '13', productName: '便当-红烧排骨', message: '今日过期，仅剩 0 天，请紧急处理', time: '22:00', type: 'expiring', expiryLevel: 'critical' },
-  { id: 'r4', productId: '11', productName: '三明治-火腿蛋', message: '即将过期，还剩 1 天', time: '22:00', type: 'expiring', expiryLevel: 'critical' },
   { id: 'r5', productId: '7', productName: '饭团-金枪鱼', message: '补货任务已开始', time: '23:00', type: 'scheduled' },
-  { id: 'r6', productId: '14', productName: '便当-宫保鸡丁', message: '临期警告，还剩 2 天，请重点关注', time: '22:00', type: 'expiring', expiryLevel: 'warning' },
-  { id: 'r7', productId: '17', productName: '三明治-金枪鱼', message: '临期警告，还剩 2 天，请重点关注', time: '22:00', type: 'expiring', expiryLevel: 'warning' },
-  { id: 'r8', productId: '16', productName: '牛奶-纯牛奶', message: '临期提醒，还剩 3 天，请持续关注', time: '22:00', type: 'expiring', expiryLevel: 'warning' },
-  { id: 'r9', productId: '18', productName: '便当-鱼香肉丝', message: '临期提醒，还剩 4 天', time: '22:00', type: 'expiring', expiryLevel: 'attention' },
-  { id: 'r10', productId: '19', productName: '酸奶-草莓味', message: '临期提醒，还剩 5 天', time: '22:00', type: 'expiring', expiryLevel: 'attention' },
 ];
