@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Store, Bell, BellOff } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
@@ -7,6 +7,13 @@ import ReminderModal from './components/ReminderModal';
 import StatisticsSummary from './components/StatisticsSummary';
 import type { Product, ScheduleItem, Reminder, Statistics } from './types';
 import { mockProducts, mockSchedule, mockReminders } from './data/mockData';
+import {
+  getCurrentTime,
+  checkOverdueTasks,
+  recalculateSchedule,
+  generateOverdueReminders,
+  calculateTotalEstimatedFinishTime,
+} from './utils/scheduleUtils';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -14,11 +21,37 @@ export default function App() {
   const [reminders, setReminders] = useState<Reminder[]>(mockReminders);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showReminders, setShowReminders] = useState(true);
+  const [currentTime, setCurrentTime] = useState<string>(getCurrentTime());
+
+  const checkAndUpdateSchedule = useCallback(() => {
+    const now = getCurrentTime();
+    setCurrentTime(now);
+
+    setSchedule(prevSchedule => {
+      let updatedSchedule = checkOverdueTasks(prevSchedule, now);
+      updatedSchedule = recalculateSchedule(updatedSchedule, now);
+      
+      const result = generateOverdueReminders(updatedSchedule, reminders, now);
+      if (result.reminders.length !== reminders.length) {
+        setReminders(result.reminders);
+      }
+      
+      return result.updatedSchedule;
+    });
+  }, [reminders]);
+
+  useEffect(() => {
+    checkAndUpdateSchedule();
+    const interval = setInterval(checkAndUpdateSchedule, 30000);
+    return () => clearInterval(interval);
+  }, [checkAndUpdateSchedule]);
 
   const statistics = useMemo<Statistics>(() => {
     const lowStockCount = products.filter(p => p.stock < p.maxStock * 0.3).length;
     const expiringCount = products.filter(p => p.expirationDate && new Date(p.expirationDate) <= new Date()).length;
     const completedTasks = schedule.filter(s => s.status === 'completed').length;
+    const overdueTasks = schedule.filter(s => s.isOverdue && s.status === 'pending').length;
+    const estimatedFinishTime = calculateTotalEstimatedFinishTime(schedule, currentTime);
 
     return {
       totalProducts: products.length,
@@ -27,17 +60,46 @@ export default function App() {
       expiringCount,
       scheduledTasks: schedule.length,
       completedTasks,
+      overdueTasks,
+      estimatedFinishTime,
     };
-  }, [products, schedule]);
+  }, [products, schedule, currentTime]);
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
   };
 
   const handleScheduleStatusChange = (id: string, status: 'pending' | 'in_progress' | 'completed') => {
-    setSchedule(prev => prev.map(item => 
-      item.id === id ? { ...item, status } : item
-    ));
+    const now = getCurrentTime();
+    setSchedule(prev => {
+      const updated = prev.map(item => {
+        if (item.id !== id) return item;
+        
+        const updates: Partial<ScheduleItem> = { status };
+        
+        if (status === 'in_progress' && !item.actualStartTime) {
+          updates.actualStartTime = now;
+          updates.isOverdue = false;
+        }
+        
+        if (status === 'completed' && !item.actualEndTime) {
+          updates.actualEndTime = now;
+          updates.isOverdue = false;
+        }
+        
+        if (status === 'pending') {
+          updates.actualStartTime = undefined;
+          updates.actualEndTime = undefined;
+          updates.reminderSent = false;
+        }
+        
+        return { ...item, ...updates };
+      });
+      
+      return recalculateSchedule(updated, now);
+    });
+    
+    setReminders(prev => prev.filter(r => r.scheduleId !== id || r.type !== 'overdue'));
   };
 
   const handleDismissReminder = (id: string) => {

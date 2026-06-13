@@ -16,6 +16,13 @@ export interface ScheduleItem {
   time: string;
   quantity: number;
   status: 'pending' | 'in_progress' | 'completed';
+  estimatedDuration: number;
+  originalTime: string;
+  isOverdue?: boolean;
+  estimatedStartTime?: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  reminderSent?: boolean;
 }
 
 export interface Reminder {
@@ -24,7 +31,8 @@ export interface Reminder {
   productName: string;
   message: string;
   time: string;
-  type: 'low_stock' | 'expiring' | 'scheduled';
+  type: 'low_stock' | 'expiring' | 'scheduled' | 'overdue';
+  scheduleId?: string;
 }
 
 export interface Statistics {
@@ -34,4 +42,6 @@ export interface Statistics {
   expiringCount: number;
   scheduledTasks: number;
   completedTasks: number;
+  overdueTasks: number;
+  estimatedFinishTime?: string;
 }
