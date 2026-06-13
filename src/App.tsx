@@ -14,7 +14,7 @@ import {
   generateOverdueReminders,
   calculateTotalEstimatedFinishTime,
 } from './utils/scheduleUtils';
-import { getExpiryStatistics, generateExpiryReminders } from './utils/expiryUtils';
+import { getExpiryStatistics, generateExpiryReminders, isExpiringProduct } from './utils/expiryUtils';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -23,6 +23,17 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showReminders, setShowReminders] = useState(true);
   const [currentTime, setCurrentTime] = useState<string>(getCurrentTime());
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      if (selectedCategory === 'all') return matchesSearch;
+      if (selectedCategory === 'expiring') return matchesSearch && isExpiringProduct(product);
+      return matchesSearch && product.category === selectedCategory;
+    });
+  }, [products, selectedCategory, searchTerm]);
 
   const checkAndUpdateSchedule = useCallback(() => {
     const now = getCurrentTime();
@@ -54,15 +65,15 @@ export default function App() {
   }, [products]);
 
   const statistics = useMemo<Statistics>(() => {
-    const lowStockCount = products.filter(p => p.stock < p.maxStock * 0.3).length;
-    const expiryStats = getExpiryStatistics(products);
+    const lowStockCount = filteredProducts.filter(p => p.stock < p.maxStock * 0.3).length;
+    const expiryStats = getExpiryStatistics(filteredProducts);
     const completedTasks = schedule.filter(s => s.status === 'completed').length;
     const overdueTasks = schedule.filter(s => s.isOverdue && s.status === 'pending').length;
     const estimatedFinishTime = calculateTotalEstimatedFinishTime(schedule, currentTime);
 
     return {
-      totalProducts: products.length,
-      totalStock: products.reduce((sum, p) => sum + p.stock, 0),
+      totalProducts: filteredProducts.length,
+      totalStock: filteredProducts.reduce((sum, p) => sum + p.stock, 0),
       lowStockCount,
       expiringCount: expiryStats.total,
       expiringCritical: expiryStats.critical,
@@ -73,7 +84,7 @@ export default function App() {
       overdueTasks,
       estimatedFinishTime,
     };
-  }, [products, schedule, currentTime]);
+  }, [filteredProducts, schedule, currentTime]);
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
@@ -175,9 +186,13 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-4">
             <ProductPanel 
-              products={products} 
+              filteredProducts={filteredProducts}
               onProductSelect={handleProductSelect}
               selectedProductId={selectedProduct?.id ?? null}
+              selectedCategory={selectedCategory}
+              searchTerm={searchTerm}
+              onCategoryChange={setSelectedCategory}
+              onSearchChange={setSearchTerm}
             />
           </div>
 
@@ -199,7 +214,7 @@ export default function App() {
         </div>
 
         <div className="mt-6">
-          <StatisticsSummary statistics={statistics} products={products} />
+          <StatisticsSummary statistics={statistics} products={filteredProducts} />
         </div>
       </main>
 
