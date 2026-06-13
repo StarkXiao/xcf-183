@@ -14,6 +14,7 @@ import {
   generateOverdueReminders,
   calculateTotalEstimatedFinishTime,
 } from './utils/scheduleUtils';
+import { getExpiryStatistics } from './utils/expiryUtils';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -48,7 +49,7 @@ export default function App() {
 
   const statistics = useMemo<Statistics>(() => {
     const lowStockCount = products.filter(p => p.stock < p.maxStock * 0.3).length;
-    const expiringCount = products.filter(p => p.expirationDate && new Date(p.expirationDate) <= new Date()).length;
+    const expiryStats = getExpiryStatistics(products);
     const completedTasks = schedule.filter(s => s.status === 'completed').length;
     const overdueTasks = schedule.filter(s => s.isOverdue && s.status === 'pending').length;
     const estimatedFinishTime = calculateTotalEstimatedFinishTime(schedule, currentTime);
@@ -57,7 +58,10 @@ export default function App() {
       totalProducts: products.length,
       totalStock: products.reduce((sum, p) => sum + p.stock, 0),
       lowStockCount,
-      expiringCount,
+      expiringCount: expiryStats.total,
+      expiringCritical: expiryStats.critical,
+      expiringWarning: expiryStats.warning,
+      expiringAttention: expiryStats.attention,
       scheduledTasks: schedule.length,
       completedTasks,
       overdueTasks,

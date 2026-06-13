@@ -1,3 +1,5 @@
+export type ExpiryWarningLevel = 'critical' | 'warning' | 'attention';
+
 export interface Product {
   id: string;
   name: string;
@@ -33,6 +35,7 @@ export interface Reminder {
   time: string;
   type: 'low_stock' | 'expiring' | 'scheduled' | 'overdue';
   scheduleId?: string;
+  expiryLevel?: ExpiryWarningLevel;
 }
 
 export interface Statistics {
@@ -40,6 +43,9 @@ export interface Statistics {
   totalStock: number;
   lowStockCount: number;
   expiringCount: number;
+  expiringCritical: number;
+  expiringWarning: number;
+  expiringAttention: number;
   scheduledTasks: number;
   completedTasks: number;
   overdueTasks: number;

@@ -14,9 +14,15 @@ export const mockProducts: Product[] = [
   { id: '11', name: '三明治-火腿蛋', category: 'rice_ball', stock: 3, maxStock: 10, price: 12.0, shelfLocation: 'B2-01', expirationDate: '2026-06-14' },
   { id: '12', name: '关东煮-萝卜', category: 'rice_ball', stock: 20, maxStock: 30, price: 3.0, shelfLocation: 'B3-01' },
   { id: '13', name: '便当-红烧排骨', category: 'rice_ball', stock: 2, maxStock: 8, price: 18.0, shelfLocation: 'B4-01', expirationDate: '2026-06-13' },
-  { id: '14', name: '便当-宫保鸡丁', category: 'rice_ball', stock: 5, maxStock: 8, price: 16.0, shelfLocation: 'B4-02', expirationDate: '2026-06-14' },
+  { id: '14', name: '便当-宫保鸡丁', category: 'rice_ball', stock: 5, maxStock: 8, price: 16.0, shelfLocation: 'B4-02', expirationDate: '2026-06-15' },
   { id: '15', name: '酸奶-原味', category: 'beverage', stock: 3, maxStock: 20, price: 5.0, shelfLocation: 'C1-01', expirationDate: '2026-06-13' },
-  { id: '16', name: '牛奶-纯牛奶', category: 'beverage', stock: 10, maxStock: 25, price: 6.5, shelfLocation: 'C1-02', expirationDate: '2026-06-15' },
+  { id: '16', name: '牛奶-纯牛奶', category: 'beverage', stock: 10, maxStock: 25, price: 6.5, shelfLocation: 'C1-02', expirationDate: '2026-06-16' },
+  { id: '17', name: '三明治-金枪鱼', category: 'rice_ball', stock: 4, maxStock: 10, price: 13.0, shelfLocation: 'B2-02', expirationDate: '2026-06-15' },
+  { id: '18', name: '便当-鱼香肉丝', category: 'rice_ball', stock: 6, maxStock: 8, price: 17.0, shelfLocation: 'B4-03', expirationDate: '2026-06-17' },
+  { id: '19', name: '酸奶-草莓味', category: 'beverage', stock: 8, maxStock: 20, price: 5.5, shelfLocation: 'C1-03', expirationDate: '2026-06-18' },
+  { id: '20', name: '面包-全麦', category: 'rice_ball', stock: 12, maxStock: 20, price: 8.0, shelfLocation: 'B5-01', expirationDate: '2026-06-20' },
+  { id: '21', name: '蛋糕-提拉米苏', category: 'rice_ball', stock: 5, maxStock: 10, price: 15.0, shelfLocation: 'B5-02', expirationDate: '2026-06-19' },
+  { id: '22', name: '牛奶-低脂', category: 'beverage', stock: 15, maxStock: 25, price: 7.0, shelfLocation: 'C1-04', expirationDate: '2026-06-25' },
 ];
 
 export const mockSchedule: ScheduleItem[] = [
@@ -32,7 +38,13 @@ export const mockSchedule: ScheduleItem[] = [
 
 export const mockReminders: Reminder[] = [
   { id: 'r1', productId: '4', productName: '怡宝矿泉水 555ml', message: '库存不足，当前库存: 5', time: '22:00', type: 'low_stock' },
-  { id: 'r2', productId: '15', productName: '酸奶-原味', message: '即将过期，有效期至: 2026-06-13', time: '22:00', type: 'expiring' },
-  { id: 'r3', productId: '13', productName: '便当-红烧排骨', message: '即将过期，有效期至: 2026-06-13', time: '22:00', type: 'expiring' },
-  { id: 'r4', productId: '7', productName: '饭团-金枪鱼', message: '补货任务已开始', time: '23:00', type: 'scheduled' },
+  { id: 'r2', productId: '15', productName: '酸奶-原味', message: '今日过期，仅剩 0 天，请紧急处理', time: '22:00', type: 'expiring', expiryLevel: 'critical' },
+  { id: 'r3', productId: '13', productName: '便当-红烧排骨', message: '今日过期，仅剩 0 天，请紧急处理', time: '22:00', type: 'expiring', expiryLevel: 'critical' },
+  { id: 'r4', productId: '11', productName: '三明治-火腿蛋', message: '即将过期，还剩 1 天', time: '22:00', type: 'expiring', expiryLevel: 'critical' },
+  { id: 'r5', productId: '7', productName: '饭团-金枪鱼', message: '补货任务已开始', time: '23:00', type: 'scheduled' },
+  { id: 'r6', productId: '14', productName: '便当-宫保鸡丁', message: '临期警告，还剩 2 天，请重点关注', time: '22:00', type: 'expiring', expiryLevel: 'warning' },
+  { id: 'r7', productId: '17', productName: '三明治-金枪鱼', message: '临期警告，还剩 2 天，请重点关注', time: '22:00', type: 'expiring', expiryLevel: 'warning' },
+  { id: 'r8', productId: '16', productName: '牛奶-纯牛奶', message: '临期提醒，还剩 3 天，请持续关注', time: '22:00', type: 'expiring', expiryLevel: 'warning' },
+  { id: 'r9', productId: '18', productName: '便当-鱼香肉丝', message: '临期提醒，还剩 4 天', time: '22:00', type: 'expiring', expiryLevel: 'attention' },
+  { id: 'r10', productId: '19', productName: '酸奶-草莓味', message: '临期提醒，还剩 5 天', time: '22:00', type: 'expiring', expiryLevel: 'attention' },
 ];

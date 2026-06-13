@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Coffee, Cookie, Clock, Search, Filter } from 'lucide-react';
+import { Coffee, Cookie, Clock, Search, Filter, AlertTriangle, AlertCircle, Bell } from 'lucide-react';
 import type { Product } from '../types';
+import { getExpiryWarningLevel, getExpiryWarningConfig, getDaysUntilExpiry, isExpiringProduct } from '../utils/expiryUtils';
 
 interface ProductPanelProps {
   products: Product[];
@@ -14,13 +15,15 @@ const categoryConfig = {
   expiring: { label: '临期商品', icon: Clock, color: 'bg-red-100 text-red-700' },
 };
 
+const expiryLevelIcons = {
+  critical: AlertTriangle,
+  warning: AlertCircle,
+  attention: Bell,
+};
+
 export default function ProductPanel({ products, onProductSelect, selectedProductId }: ProductPanelProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-
-  const isExpiringProduct = (product: Product) => {
-    return product.expirationDate && new Date(product.expirationDate) <= new Date();
-  };
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -70,7 +73,10 @@ export default function ProductPanel({ products, onProductSelect, selectedProduc
         {filteredProducts.map((product) => {
           const { color: statusColor, status } = getStockStatus(product.stock, product.maxStock);
           const CategoryIcon = categoryConfig[product.category].icon;
-          const isExpiring = product.expirationDate && new Date(product.expirationDate) <= new Date();
+          const expiryLevel = getExpiryWarningLevel(product.expirationDate);
+          const expiryConfig = expiryLevel ? getExpiryWarningConfig(expiryLevel) : null;
+          const daysLeft = product.expirationDate ? getDaysUntilExpiry(product.expirationDate) : null;
+          const ExpiryIcon = expiryLevel ? expiryLevelIcons[expiryLevel] : null;
 
           return (
             <div
@@ -79,8 +85,8 @@ export default function ProductPanel({ products, onProductSelect, selectedProduc
               className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
                 selectedProductId === product.id
                   ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50 shadow-md'
-                  : isExpiring
-                  ? 'border-red-200 bg-red-50 hover:border-blue-300'
+                  : expiryConfig
+                  ? `${expiryConfig.border} ${expiryConfig.bg} hover:border-blue-300`
                   : 'border-gray-100 hover:border-blue-300'
               }`}
             >
@@ -94,8 +100,11 @@ export default function ProductPanel({ products, onProductSelect, selectedProduc
                     <p className="text-xs text-gray-500 mt-0.5">货架位置: {product.shelfLocation}</p>
                   </div>
                 </div>
-                {isExpiring && (
-                  <span className="px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full">即将过期</span>
+                {expiryConfig && ExpiryIcon && (
+                  <span className={`px-2 py-1 ${expiryConfig.badgeBg} ${expiryConfig.badgeText} text-xs rounded-full flex items-center gap-1`}>
+                    <ExpiryIcon className="w-3 h-3" />
+                    {daysLeft !== null && daysLeft > 0 ? `${daysLeft}天后过期` : daysLeft === 0 ? '今日过期' : '已过期'}
+                  </span>
                 )}
               </div>
               <div className="mt-3 flex items-center justify-between">
@@ -115,6 +124,14 @@ export default function ProductPanel({ products, onProductSelect, selectedProduc
                   <span className="text-xs text-gray-500">{status}</span>
                 </div>
               </div>
+              {expiryConfig && (
+                <div className={`mt-3 pt-3 border-t ${expiryConfig.border} border-dashed`}>
+                  <p className={`text-xs ${expiryConfig.color}`}>
+                    <span className="font-medium">{expiryConfig.label}：</span>
+                    {expiryConfig.suggestion}
+                  </p>
+                </div>
+              )}
             </div>
           );
         })}

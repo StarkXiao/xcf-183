@@ -1,4 +1,4 @@
-import { BarChart3, Package, AlertTriangle, Clock, CheckCircle, ListTodo, AlertCircle, Clock3 } from 'lucide-react';
+import { BarChart3, Package, AlertTriangle, Clock, CheckCircle, ListTodo, AlertCircle, Clock3, Zap, AlertTriangle as AlertTriangleIcon, Bell } from 'lucide-react';
 import type { Statistics, Product } from '../types';
 
 interface StatisticsSummaryProps {
@@ -80,7 +80,7 @@ export default function StatisticsSummary({ statistics, products }: StatisticsSu
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-3 mb-4">
         <div className="p-3 bg-blue-50 rounded-lg">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -104,6 +104,38 @@ export default function StatisticsSummary({ statistics, products }: StatisticsSu
           </div>
         </div>
       </div>
+
+      {statistics.expiringCount > 0 && (
+        <div className="p-4 bg-gray-50 rounded-xl">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="w-4 h-4 text-gray-600" />
+            <span className="text-sm font-medium text-gray-700">临期商品分级</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="p-2 bg-red-50 rounded-lg text-center border border-red-100">
+              <div className="flex items-center justify-center mb-1">
+                <Zap className="w-4 h-4 text-red-500" />
+              </div>
+              <p className="text-lg font-bold text-red-600">{statistics.expiringCritical}</p>
+              <p className="text-xs text-red-500">紧急(≤1天)</p>
+            </div>
+            <div className="p-2 bg-orange-50 rounded-lg text-center border border-orange-100">
+              <div className="flex items-center justify-center mb-1">
+                <AlertTriangleIcon className="w-4 h-4 text-orange-500" />
+              </div>
+              <p className="text-lg font-bold text-orange-600">{statistics.expiringWarning}</p>
+              <p className="text-xs text-orange-500">警告(≤3天)</p>
+            </div>
+            <div className="p-2 bg-yellow-50 rounded-lg text-center border border-yellow-100">
+              <div className="flex items-center justify-center mb-1">
+                <Bell className="w-4 h-4 text-yellow-600" />
+              </div>
+              <p className="text-lg font-bold text-yellow-600">{statistics.expiringAttention}</p>
+              <p className="text-xs text-yellow-600">提醒(≤7天)</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
