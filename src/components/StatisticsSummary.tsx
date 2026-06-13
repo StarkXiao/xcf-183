@@ -1,8 +1,9 @@
 import { BarChart3, Package, AlertTriangle, Clock, CheckCircle, ListTodo } from 'lucide-react';
-import type { Statistics } from '../types';
+import type { Statistics, Product } from '../types';
 
 interface StatisticsSummaryProps {
   statistics: Statistics;
+  products: Product[];
 }
 
 const statConfig = [
@@ -14,10 +15,13 @@ const statConfig = [
   { key: 'completedTasks', label: '已完成', icon: CheckCircle, color: 'bg-teal-500' },
 ];
 
-export default function StatisticsSummary({ statistics }: StatisticsSummaryProps) {
+export default function StatisticsSummary({ statistics, products }: StatisticsSummaryProps) {
   const completionRate = statistics.scheduledTasks > 0 
     ? Math.round((statistics.completedTasks / statistics.scheduledTasks) * 100) 
     : 0;
+
+  const beverageCount = products.filter(p => p.category === 'beverage').length;
+  const riceBallCount = products.filter(p => p.category === 'rice_ball').length;
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
@@ -61,7 +65,7 @@ export default function StatisticsSummary({ statistics }: StatisticsSummaryProps
             </div>
             <div>
               <p className="text-xs text-gray-500">饮料</p>
-              <p className="font-semibold text-blue-600">7</p>
+              <p className="font-semibold text-blue-600">{beverageCount}</p>
             </div>
           </div>
         </div>
@@ -72,7 +76,7 @@ export default function StatisticsSummary({ statistics }: StatisticsSummaryProps
             </div>
             <div>
               <p className="text-xs text-gray-500">饭团/便当</p>
-              <p className="font-semibold text-orange-600">9</p>
+              <p className="font-semibold text-orange-600">{riceBallCount}</p>
             </div>
           </div>
         </div>

@@ -17,10 +17,15 @@ export default function ProductPanel({ products, onProductSelect }: ProductPanel
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
+  const isExpiringProduct = (product: Product) => {
+    return product.expirationDate && new Date(product.expirationDate) <= new Date();
+  };
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    if (selectedCategory === 'all') return matchesSearch;
+    if (selectedCategory === 'expiring') return matchesSearch && isExpiringProduct(product);
+    return matchesSearch && product.category === selectedCategory;
   });
 
   const getStockStatus = (stock: number, maxStock: number) => {

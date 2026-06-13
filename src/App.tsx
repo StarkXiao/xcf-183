@@ -98,7 +98,7 @@ export default function App() {
         </div>
 
         <div className="mt-6">
-          <StatisticsSummary statistics={statistics} />
+          <StatisticsSummary statistics={statistics} products={products} />
         </div>
       </main>
 
