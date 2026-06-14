@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2 } from 'lucide-react';
+import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2, ClipboardList } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
 import StockCalculator from './components/StockCalculator';
@@ -15,8 +15,9 @@ import ProcessingBoard from './components/ProcessingBoard';
 import ShelfHeatmap from './components/ShelfHeatmap';
 import EmployeeAttendance from './components/EmployeeAttendance';
 import ScrapManagement from './components/ScrapManagement';
-import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem } from './types';
-import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems } from './data/mockData';
+import ShiftHandoverLogComponent from './components/ShiftHandoverLog';
+import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog } from './types';
+import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems, mockHandoverLogs } from './data/mockData';
 import {
   getCurrentTime,
   checkOverdueTasks,
@@ -63,7 +64,7 @@ export default function App() {
     return [...mockHistoricalSnapshots, ...newOnes];
   });
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap'>('replenishment');
+  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap' | 'handover'>('replenishment');
   const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>(mockShiftRevenues);
   const [deliveries, setDeliveries] = useState<DeliveryAppointment[]>(mockDeliveries);
   const [suppliers] = useState<Supplier[]>(mockSuppliers);
@@ -77,6 +78,7 @@ export default function App() {
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>(mockShiftAssignments);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(mockAttendanceRecords);
   const [scrapItems, setScrapItems] = useState<ScrapItem[]>(mockScrapItems);
+  const [handoverLogs, setHandoverLogs] = useState<ShiftHandoverLog[]>(mockHandoverLogs);
 
   const selectedSnapshot = useMemo(() => {
     if (!selectedHistoryDate) return null;
@@ -533,6 +535,20 @@ export default function App() {
                   <Trash2 className="w-4 h-4" />
                   报废管理
                 </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('handover');
+                    setSelectedHistoryDate(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'handover'
+                      ? 'bg-white text-indigo-600 shadow-sm font-medium'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  交接班日志
+                </button>
               </div>
               {activeTab === 'replenishment' && (
                 <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
@@ -627,6 +643,12 @@ export default function App() {
             items={scrapItems}
             products={products}
             onUpdateItems={setScrapItems}
+          />
+        ) : activeTab === 'handover' ? (
+          <ShiftHandoverLogComponent
+            logs={handoverLogs}
+            onUpdateLogs={setHandoverLogs}
+            currentTime={currentTime}
           />
         ) : isHistoryMode ? (
           <div className="space-y-6">

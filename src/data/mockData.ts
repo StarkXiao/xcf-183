@@ -1,4 +1,4 @@
-import type { Product, ScheduleItem, Reminder, StockSnapshot, ShiftRevenue, PaymentMethod, Supplier, DeliveryAppointment, DeliveryItem, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem } from '../types';
+import type { Product, ScheduleItem, Reminder, StockSnapshot, ShiftRevenue, PaymentMethod, Supplier, DeliveryAppointment, DeliveryItem, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog } from '../types';
 import { formatDate } from '../utils/historyUtils';
 
 export const mockProducts: Product[] = [
@@ -982,5 +982,89 @@ export const mockScrapItems: ScrapItem[] = [
     confirmedBy: '张夜班',
     confirmedTime: '02:00',
     month: getScrapMonth(-2),
+  },
+];
+
+const getHandoverDate = (daysAgo: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  return formatDate(date);
+};
+
+export const mockHandoverLogs: ShiftHandoverLog[] = [
+  {
+    id: 'hl1',
+    shiftDate: getHandoverDate(0),
+    outgoingShift: '夜班',
+    incomingShift: '早班',
+    outgoingOperator: '张夜班',
+    incomingOperator: '李早班',
+    events: [
+      { id: 'evt1', type: 'incident', description: '凌晨2点停电约15分钟，已启动应急照明', occurredAt: '02:00', reportedBy: '张夜班', resolved: true, resolution: '已恢复供电，冷链温度正常' },
+      { id: 'evt2', type: 'normal', description: '完成夜间全部补货排程任务', occurredAt: '04:30', reportedBy: '张夜班', resolved: true },
+      { id: 'evt3', type: 'customer', description: '顾客投诉便当加热不均匀', occurredAt: '03:15', reportedBy: '赵收银', resolved: false },
+    ],
+    todos: [
+      { id: 'todo1', description: '检查B区冷链设备运行状态', priority: 'high', status: 'pending', assignedTo: '李早班', dueBy: '08:30', notes: '停电后需确认温度是否恢复' },
+      { id: 'todo2', description: '处理三明治-火腿蛋临期下架', priority: 'medium', status: 'pending', assignedTo: '李早班', dueBy: '09:00' },
+      { id: 'todo3', description: '补充怡宝矿泉水至安全库存', priority: 'high', status: 'pending', assignedTo: '李早班', dueBy: '08:00' },
+      { id: 'todo4', description: '回复顾客关于便当加热投诉', priority: 'medium', status: 'pending', assignedTo: '李早班', dueBy: '10:00', notes: '已记录顾客联系方式' },
+    ],
+    exceptions: [
+      { id: 'exc1', severity: 'critical', category: '设备故障', description: 'B区冷链温度短暂升高至8°C（正常0-4°C）', occurredAt: '02:05', reportedBy: '张夜班', actionTaken: '已联系维修，停电恢复后温度逐步下降', followUpRequired: true, followUpNotes: '需早班持续监控温度2小时' },
+      { id: 'exc2', severity: 'warning', category: '库存异常', description: '怡宝矿泉水库存仅5瓶，远低于安全线', occurredAt: '21:30', reportedBy: '张夜班', actionTaken: '已提交补货申请', followUpRequired: true },
+      { id: 'exc3', severity: 'info', category: '商品质量', description: '便当加热器偶有加热不均现象', occurredAt: '03:15', reportedBy: '赵收银', followUpRequired: false, followUpNotes: '建议维修检查' },
+    ],
+    generalNotes: '夜班整体运行平稳，停电事件已处理但需关注冷链温度恢复情况。补货排程大部分已完成，剩余少量任务已移交早班。',
+    status: 'draft',
+    createdAt: '05:30',
+  },
+  {
+    id: 'hl2',
+    shiftDate: getHandoverDate(1),
+    outgoingShift: '夜班',
+    incomingShift: '早班',
+    outgoingOperator: '张夜班',
+    incomingOperator: '李早班',
+    events: [
+      { id: 'evt4', type: 'normal', description: '夜间送货2批次已全部验收', occurredAt: '22:30', reportedBy: '张夜班', resolved: true },
+      { id: 'evt5', type: 'equipment', description: '收银机2号纸盒卡纸，已临时更换', occurredAt: '01:00', reportedBy: '赵收银', resolved: true, resolution: '已更换纸卷，恢复正常' },
+    ],
+    todos: [
+      { id: 'todo5', description: '联系收银机供应商检修2号机', priority: 'low', status: 'completed', assignedTo: '李早班', notes: '已电话预约' },
+    ],
+    exceptions: [
+      { id: 'exc4', severity: 'warning', category: '现金差异', description: '2号收银机出现短款35.5元', occurredAt: '01:15', reportedBy: '赵收银', actionTaken: '已登记差异，等待主管审核', followUpRequired: true },
+    ],
+    generalNotes: '夜间送货验收正常，2号收银机有小问题已临时处理。',
+    outgoingSignature: { signerName: '张夜班', signerRole: '交班人', signedAt: '05:45', signatureData: 'SIG-张夜班-1718280000' },
+    incomingSignature: { signerName: '李早班', signerRole: '接班人', signedAt: '05:50', signatureData: 'SIG-李早班-1718280001' },
+    status: 'completed',
+    createdAt: '05:40',
+    completedAt: '05:50',
+  },
+  {
+    id: 'hl3',
+    shiftDate: getHandoverDate(2),
+    outgoingShift: '夜班',
+    incomingShift: '早班',
+    outgoingOperator: '王夜班',
+    incomingOperator: '李早班',
+    events: [
+      { id: 'evt6', type: 'safety', description: '门口地面积水，已放置防滑警示牌', occurredAt: '23:30', reportedBy: '王夜班', resolved: true, resolution: '已清理积水' },
+    ],
+    todos: [
+      { id: 'todo6', description: '检查门口排水系统', priority: 'medium', status: 'completed', assignedTo: '李早班' },
+      { id: 'todo7', description: '整理A区货架商品陈列', priority: 'low', status: 'completed', assignedTo: '李早班' },
+    ],
+    exceptions: [
+      { id: 'exc5', severity: 'info', category: '安全隐患', description: '入口处雨天漏水需物业修缮', occurredAt: '23:30', reportedBy: '王夜班', actionTaken: '已放置警示牌并通知物业', followUpRequired: true },
+    ],
+    generalNotes: '雨天注意防滑，已通知物业修缮入口漏水。',
+    outgoingSignature: { signerName: '王夜班', signerRole: '交班人', signedAt: '05:55', signatureData: 'SIG-王夜班-1718190000' },
+    incomingSignature: { signerName: '李早班', signerRole: '接班人', signedAt: '06:00', signatureData: 'SIG-李早班-1718190001' },
+    status: 'completed',
+    createdAt: '05:50',
+    completedAt: '06:00',
   },
 ];

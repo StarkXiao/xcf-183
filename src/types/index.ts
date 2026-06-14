@@ -508,3 +508,66 @@ export interface MonthlyLossStats {
   items: ScrapItem[];
 }
 
+export type HandoverEventType = 'normal' | 'incident' | 'equipment' | 'customer' | 'safety' | 'other';
+export type HandoverTodoPriority = 'high' | 'medium' | 'low';
+export type HandoverTodoStatus = 'pending' | 'in_progress' | 'completed';
+export type HandoverExceptionSeverity = 'critical' | 'warning' | 'info';
+export type HandoverLogStatus = 'draft' | 'pending_signature' | 'completed';
+
+export interface HandoverEvent {
+  id: string;
+  type: HandoverEventType;
+  description: string;
+  occurredAt: string;
+  reportedBy: string;
+  resolved: boolean;
+  resolution?: string;
+}
+
+export interface HandoverTodo {
+  id: string;
+  description: string;
+  priority: HandoverTodoPriority;
+  status: HandoverTodoStatus;
+  assignedTo?: string;
+  dueBy?: string;
+  notes?: string;
+}
+
+export interface HandoverException {
+  id: string;
+  severity: HandoverExceptionSeverity;
+  category: string;
+  description: string;
+  occurredAt: string;
+  reportedBy: string;
+  actionTaken?: string;
+  followUpRequired: boolean;
+  followUpNotes?: string;
+}
+
+export interface ElectronicSignature {
+  signerName: string;
+  signerRole: string;
+  signedAt: string;
+  signatureData: string;
+}
+
+export interface ShiftHandoverLog {
+  id: string;
+  shiftDate: string;
+  outgoingShift: string;
+  incomingShift: string;
+  outgoingOperator: string;
+  incomingOperator: string;
+  events: HandoverEvent[];
+  todos: HandoverTodo[];
+  exceptions: HandoverException[];
+  generalNotes: string;
+  outgoingSignature?: ElectronicSignature;
+  incomingSignature?: ElectronicSignature;
+  status: HandoverLogStatus;
+  createdAt: string;
+  completedAt?: string;
+}
+
