@@ -262,7 +262,8 @@ export interface ProcessingTask {
   orderSource?: 'online' | 'in_store' | 'batch';
   orderId?: string;
   notes?: string;
-  reminderSent?: boolean;
+  warningReminderSent?: boolean;
+  criticalReminderSent?: boolean;
   temperatureCheck?: {
     required: boolean;
     actualTemp?: number;

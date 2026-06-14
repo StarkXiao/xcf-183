@@ -126,36 +126,61 @@ export const generateProcessingReminders = (
   const newReminders: Reminder[] = [];
   
   const updatedTasks = tasks.map(task => {
-    if (!task.isOverdue || task.reminderSent || task.status === 'completed' || task.status === 'cancelled') {
+    if (!task.isOverdue || task.status === 'completed' || task.status === 'cancelled') {
       return task;
     }
 
+    let taskUpdates: Partial<ProcessingTask> = {};
     const overdueMsg = task.overdueMinutes! > 60
       ? `${Math.floor(task.overdueMinutes! / 60)}小时${task.overdueMinutes! % 60}分钟`
       : `${task.overdueMinutes!}分钟`;
 
-    const level = task.warningLevel === 'critical' ? '严重超时' : '超时';
-    const reminderType = task.warningLevel === 'critical' ? 'processing_overdue' : 'processing_warning';
+    if (task.warningLevel === 'warning' && !task.warningReminderSent) {
+      const reminder: Reminder = {
+        id: `processing-warning-${task.id}-${Date.now()}`,
+        productId: task.productId,
+        productName: task.productName,
+        message: `【超时预警】${task.productName} 加工任务已逾期${overdueMsg}，当前进度: ${task.progress}%，请加快处理！`,
+        time: currentTime,
+        type: 'processing_warning',
+        processingTaskId: task.id,
+      };
 
-    const reminder: Reminder = {
-      id: `processing-${task.id}-${Date.now()}`,
-      productId: task.productId,
-      productName: task.productName,
-      message: `【${level}】${task.productName} 加工任务已逾期${overdueMsg}，当前进度: ${task.progress}%，请加快处理！`,
-      time: currentTime,
-      type: reminderType,
-      processingTaskId: task.id,
-    };
+      const alreadyExists = existingReminders.some(
+        r => r.processingTaskId === task.id && r.type === 'processing_warning'
+      );
 
-    const alreadyExists = existingReminders.some(
-      r => r.processingTaskId === task.id && r.type === reminderType
-    );
-
-    if (!alreadyExists) {
-      newReminders.push(reminder);
+      if (!alreadyExists) {
+        newReminders.push(reminder);
+      }
+      taskUpdates.warningReminderSent = true;
     }
 
-    return { ...task, reminderSent: true };
+    if (task.warningLevel === 'critical' && !task.criticalReminderSent) {
+      const reminder: Reminder = {
+        id: `processing-critical-${task.id}-${Date.now()}`,
+        productId: task.productId,
+        productName: task.productName,
+        message: `【严重超时】${task.productName} 加工任务已严重逾期${overdueMsg}，当前进度: ${task.progress}%，请立即处理！`,
+        time: currentTime,
+        type: 'processing_overdue',
+        processingTaskId: task.id,
+      };
+
+      const alreadyExists = existingReminders.some(
+        r => r.processingTaskId === task.id && r.type === 'processing_overdue'
+      );
+
+      if (!alreadyExists) {
+        newReminders.push(reminder);
+      }
+      taskUpdates.criticalReminderSent = true;
+      if (!task.warningReminderSent) {
+        taskUpdates.warningReminderSent = true;
+      }
+    }
+
+    return Object.keys(taskUpdates).length > 0 ? { ...task, ...taskUpdates } : task;
   });
 
   return {
@@ -181,9 +206,22 @@ export const updateTaskStatus = (
       updates.actualStartTime = now;
     }
     
+    if (newStatus === 'queued') {
+      updates.actualStartTime = undefined;
+      updates.actualEndTime = undefined;
+      updates.warningReminderSent = false;
+      updates.criticalReminderSent = false;
+      updates.isOverdue = false;
+      updates.overdueMinutes = 0;
+      updates.warningLevel = 'normal';
+    }
+    
     if (newStatus === 'completed' || newStatus === 'cancelled') {
       updates.actualEndTime = now;
       updates.progress = newStatus === 'completed' ? 100 : task.progress;
+      updates.isOverdue = false;
+      updates.overdueMinutes = 0;
+      updates.warningLevel = 'normal';
     }
     
     if (operator) {
