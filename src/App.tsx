@@ -6,17 +6,9 @@ import StockCalculator from './components/StockCalculator';
 import ReminderModal from './components/ReminderModal';
 import StatisticsSummary from './components/StatisticsSummary';
 import HistoryTimeline from './components/HistoryTimeline';
-import ReconciliationPanel from './components/ReconciliationPanel';
-import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ReconciliationData } from './types';
-import {
-  mockProducts,
-  mockSchedule,
-  mockReminders,
-  mockHistoricalSnapshots,
-  mockReconciliationData,
-  mockHistoricalReconciliations,
-  createHistoricalReconciliation,
-} from './data/mockData';
+import NightReconciliation from './components/NightReconciliation';
+import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue } from './types';
+import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues } from './data/mockData';
 import {
   getCurrentTime,
   checkOverdueTasks,
@@ -28,8 +20,6 @@ import {
 } from './utils/scheduleUtils';
 import { getExpiryStatistics, generateExpiryReminders, isExpiringProduct } from './utils/expiryUtils';
 import { formatDate, createSnapshot, saveSnapshot, loadAllSnapshots } from './utils/historyUtils';
-
-type MainViewMode = 'schedule' | 'reconciliation';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -50,8 +40,8 @@ export default function App() {
     return [...mockHistoricalSnapshots, ...newOnes];
   });
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
-  const [mainViewMode, setMainViewMode] = useState<MainViewMode>('schedule');
-  const [reconciliationData, setReconciliationData] = useState<ReconciliationData>(mockReconciliationData);
+  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation'>('replenishment');
+  const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>(mockShiftRevenues);
 
   const selectedSnapshot = useMemo(() => {
     if (!selectedHistoryDate) return null;
@@ -297,24 +287,11 @@ export default function App() {
     setSelectedHistoryDate(null);
   };
 
-  const handleMainViewChange = (mode: MainViewMode) => {
-    setMainViewMode(mode);
-    setSelectedHistoryDate(null);
-  };
-
-  const handleReconciliationDataChange = (data: ReconciliationData) => {
-    setReconciliationData(data);
-  };
-
-  const displayReconciliationData = useMemo(() => {
-    if (!selectedHistoryDate) return reconciliationData;
-    const historical = mockHistoricalReconciliations[selectedHistoryDate];
-    if (historical) return historical;
-    const daysAgo = Math.floor(
-      (new Date().getTime() - new Date(selectedHistoryDate).getTime()) / (1000 * 60 * 60 * 24)
+  const handleUpdateShift = (updatedShift: ShiftRevenue) => {
+    setShiftRevenues(prev =>
+      prev.map(s => (s.shiftId === updatedShift.shiftId ? updatedShift : s))
     );
-    return createHistoricalReconciliation(Math.max(0, daysAgo));
-  }, [selectedHistoryDate, reconciliationData]);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -322,34 +299,28 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                mainViewMode === 'reconciliation'
-                  ? 'bg-gradient-to-br from-purple-500 to-pink-600'
-                  : isHistoryMode
-                  ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                  : 'bg-gradient-to-br from-blue-500 to-indigo-600'
-              }`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isHistoryMode ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
                 <Store className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-800">
-                  夜班便利店管理系统
+                  夜班便利店补货排程器
                   {isHistoryMode && (
                     <span className="ml-2 text-sm font-normal text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
                       历史回溯模式
                     </span>
                   )}
                 </h1>
-                <p className="text-sm text-gray-500">Night Shift Convenience Store Management System</p>
+                <p className="text-sm text-gray-500">Night Shift Convenience Store Replenishment Scheduler</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-wrap justify-end">
-              <div className="flex items-center bg-gradient-to-r from-slate-100 to-gray-100 rounded-xl p-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
                 <button
-                  onClick={() => handleMainViewChange('schedule')}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg transition-all ${
-                    mainViewMode === 'schedule'
-                      ? 'bg-white text-blue-600 shadow-sm font-semibold'
+                  onClick={() => setActiveTab('replenishment')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'replenishment'
+                      ? 'bg-white text-blue-600 shadow-sm font-medium'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -357,10 +328,13 @@ export default function App() {
                   补货排程
                 </button>
                 <button
-                  onClick={() => handleMainViewChange('reconciliation')}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg transition-all ${
-                    mainViewMode === 'reconciliation'
-                      ? 'bg-white text-purple-600 shadow-sm font-semibold'
+                  onClick={() => {
+                    setActiveTab('reconciliation');
+                    setSelectedHistoryDate(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'reconciliation'
+                      ? 'bg-white text-indigo-600 shadow-sm font-medium'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -368,7 +342,7 @@ export default function App() {
                   收银对账
                 </button>
               </div>
-              {mainViewMode === 'schedule' && (
+              {activeTab === 'replenishment' && (
                 <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
                   <button
                     onClick={handleBackToCurrent}
@@ -379,7 +353,7 @@ export default function App() {
                     }`}
                   >
                     <ListTodo className="w-4 h-4" />
-                    当前
+                    当前排程
                   </button>
                   <button
                     onClick={() => !isHistoryMode && setSelectedHistoryDate(formatDate(new Date(Date.now() - 86400000)))}
@@ -390,79 +364,34 @@ export default function App() {
                     }`}
                   >
                     <Clock className="w-4 h-4" />
-                    历史
+                    历史记录
                   </button>
                 </div>
               )}
-              {mainViewMode === 'schedule' && (
-                <button
-                  onClick={toggleReminders}
-                  className={`relative p-2 rounded-lg transition-colors ${
-                    showReminders ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  {showReminders ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
-                  {showReminders && effectiveReminders.length > 0 && !isHistoryMode && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                      {effectiveReminders.length}
-                    </span>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={toggleReminders}
+                className={`relative p-2 rounded-lg transition-colors ${
+                  showReminders ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {showReminders ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
+                {showReminders && effectiveReminders.length > 0 && !isHistoryMode && activeTab === 'replenishment' && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {effectiveReminders.length}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {mainViewMode === 'reconciliation' ? (
-          <div className="space-y-6">
-            {isHistoryMode && (
-              <HistoryTimeline
-                snapshots={snapshots}
-                selectedDate={selectedHistoryDate}
-                onDateSelect={handleHistoryDateSelect}
-                onBackToCurrent={handleBackToCurrent}
-                onSaveSnapshot={handleSaveSnapshot}
-              />
-            )}
-            <div className="flex items-center gap-2 mb-2">
-              {!isHistoryMode && (
-                <div className="flex items-center bg-gray-100 rounded-lg p-0.5 ml-auto">
-                  <button
-                    onClick={handleBackToCurrent}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
-                      !isHistoryMode
-                        ? 'bg-white text-purple-600 shadow-sm font-medium'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <Receipt className="w-4 h-4" />
-                    当前班次
-                  </button>
-                  <button
-                    onClick={() =>
-                      !isHistoryMode &&
-                      setSelectedHistoryDate(formatDate(new Date(Date.now() - 86400000)))
-                    }
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
-                      isHistoryMode
-                        ? 'bg-white text-purple-600 shadow-sm font-medium'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <Clock className="w-4 h-4" />
-                    历史对账
-                  </button>
-                </div>
-              )}
-            </div>
-            <ReconciliationPanel
-              data={displayReconciliationData}
-              onDataChange={handleReconciliationDataChange}
-              isHistoryMode={isHistoryMode}
-            />
-          </div>
+        {activeTab === 'reconciliation' ? (
+          <NightReconciliation
+            shifts={shiftRevenues}
+            onUpdateShift={handleUpdateShift}
+          />
         ) : isHistoryMode ? (
           <div className="space-y-6">
             <HistoryTimeline
@@ -558,12 +487,12 @@ export default function App() {
       <footer className="bg-white border-t border-gray-100 mt-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <p className="text-center text-sm text-gray-500">
-            © 2026 夜班便利店管理系统 | 补货排程 · 收银对账一体化
+            © 2026 夜班便利店补货排程器 | 为夜班员工提供高效补货管理
           </p>
         </div>
       </footer>
 
-      {showReminders && !isHistoryMode && mainViewMode === 'schedule' && (
+      {showReminders && !isHistoryMode && activeTab === 'replenishment' && (
         <ReminderModal reminders={effectiveReminders} onDismiss={handleDismissReminder} />
       )}
     </div>

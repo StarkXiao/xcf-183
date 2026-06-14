@@ -85,61 +85,70 @@ export interface TimeSlotStats {
 }
 
 export type PaymentMethod = 'cash' | 'wechat' | 'alipay' | 'card' | 'other';
-export type CashDiscrepancyType = 'short' | 'over';
-export type DiscrepancyStatus = 'pending' | 'approved' | 'rejected';
 
 export interface PaymentRecord {
   id: string;
-  method: PaymentMethod;
-  amount: number;
-  orderCount: number;
+  orderNo: string;
   time: string;
-}
-
-export interface ShiftRevenueSummary {
-  id: string;
-  shiftName: string;
-  shiftDate: string;
-  startTime: string;
-  endTime: string;
-  operatorName: string;
-  totalOrders: number;
-  totalRevenue: number;
-  refundAmount: number;
-  netRevenue: number;
-  isClosed: boolean;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  operator: string;
+  productName?: string;
 }
 
 export interface PaymentMethodStats {
   method: PaymentMethod;
-  methodName: string;
-  totalAmount: number;
-  orderCount: number;
-  refundCount: number;
-  refundAmount: number;
-  netAmount: number;
+  label: string;
+  count: number;
+  amount: number;
   percentage: number;
 }
 
-export interface CashDiscrepancyRecord {
+export type DiscrepancyType = 'short' | 'over';
+export type DiscrepancyStatus = 'pending' | 'approved' | 'rejected';
+
+export interface CashDiscrepancy {
   id: string;
   shiftId: string;
-  type: CashDiscrepancyType;
+  type: DiscrepancyType;
   amount: number;
-  reportedBy: string;
-  reportedTime: string;
-  description: string;
+  registeredTime: string;
+  registeredBy: string;
+  reason: string;
   status: DiscrepancyStatus;
   reviewedBy?: string;
   reviewedTime?: string;
   reviewComment?: string;
 }
 
-export interface ReconciliationData {
-  summary: ShiftRevenueSummary;
+export interface ShiftRevenue {
+  shiftId: string;
+  shiftName: string;
+  shiftDate: string;
+  startTime: string;
+  endTime: string;
+  operator: string;
+  totalOrders: number;
+  totalRevenue: number;
+  expectedCash: number;
+  actualCash: number;
+  payments: PaymentRecord[];
+  discrepancies: CashDiscrepancy[];
+}
+
+export interface ShiftRevenueSummary {
+  shiftId: string;
+  shiftName: string;
+  shiftDate: string;
+  operator: string;
+  totalOrders: number;
+  totalRevenue: number;
+  expectedCash: number;
+  actualCash: number;
+  cashDifference: number;
   paymentStats: PaymentMethodStats[];
-  discrepancies: CashDiscrepancyRecord[];
-  expectedCashAmount: number;
-  actualCashAmount?: number;
+  discrepancies: CashDiscrepancy[];
+  pendingDiscrepancies: number;
+  isBalanced: boolean;
 }
 
