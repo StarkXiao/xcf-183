@@ -372,5 +372,7 @@ export interface ShelfHeatmapData {
   avgReplenishTime: number;
   mostActiveShelf: string;
   leastActiveShelf: string;
+  recordCount: number;
+  snapshotCount: number;
 }
 

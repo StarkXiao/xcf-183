@@ -404,8 +404,8 @@ export default function App() {
   }, [processingTasks, processingStations, currentTime]);
 
   const shelfHeatmapData = useMemo(() => {
-    return generateShelfHeatmapData(displayProducts, displaySchedule, 7);
-  }, [displayProducts, displaySchedule]);
+    return generateShelfHeatmapData(displayProducts, snapshots, displaySchedule);
+  }, [displayProducts, snapshots, displaySchedule]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -572,7 +572,7 @@ export default function App() {
             onUpdateShift={handleUpdateShift}
           />
         ) : activeTab === 'heatmap' ? (
-          <ShelfHeatmap data={shelfHeatmapData} days={7} />
+          <ShelfHeatmap data={shelfHeatmapData} />
         ) : isHistoryMode ? (
           <div className="space-y-6">
             <HistoryTimeline

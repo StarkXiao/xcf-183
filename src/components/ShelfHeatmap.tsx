@@ -14,16 +14,17 @@ import {
   ArrowDownRight,
   X,
   Info,
+  Database,
 } from 'lucide-react';
 import type { ShelfHeatmapData, ShelfStats, ShelfCell } from '../types';
 import { getHeatColor, getHeatBgColor, getHeatLabel, getZoneName } from '../utils/shelfHeatmapUtils';
 
 interface ShelfHeatmapProps {
   data: ShelfHeatmapData;
-  days?: number;
 }
 
-export default function ShelfHeatmap({ data, days = 7 }: ShelfHeatmapProps) {
+export default function ShelfHeatmap({ data }: ShelfHeatmapProps) {
+  const { recordCount, snapshotCount } = data;
   const [selectedShelf, setSelectedShelf] = useState<ShelfStats | null>(null);
   const [activeZone, setActiveZone] = useState<string | null>(null);
 
@@ -64,8 +65,15 @@ export default function ShelfHeatmap({ data, days = 7 }: ShelfHeatmapProps) {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-800">货架陈列热力图</h2>
-              <p className="text-sm text-gray-500">最近 {days} 天补货数据分析</p>
+              <p className="text-sm text-gray-500">
+                {snapshotCount ? `${snapshotCount} 天历史数据分析` : '历史补货数据分析'}
+                {recordCount ? ` · 基于 ${recordCount} 条真实补货记录` : ''}
+              </p>
             </div>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-medium border border-green-200">
+            <Database className="w-3.5 h-3.5" />
+            真实数据
           </div>
         </div>
 
