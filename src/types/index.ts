@@ -376,3 +376,76 @@ export interface ShelfHeatmapData {
   snapshotCount: number;
 }
 
+export interface Employee {
+  id: string;
+  name: string;
+  position: string;
+  phone: string;
+  status: 'active' | 'leave' | 'off';
+  avatarColor: string;
+}
+
+export interface ShiftConfig {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  color: string;
+  isCrossDay: boolean;
+  requiredStaff: number;
+}
+
+export interface WorkArea {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+export interface ShiftAssignment {
+  id: string;
+  employeeId: string;
+  shiftId: string;
+  areaId: string;
+  date: string;
+  notes?: string;
+}
+
+export type AttendanceStatus = 'checked_in' | 'checked_out' | 'absent' | 'late' | 'early_leave' | 'on_leave';
+
+export interface AttendanceRecord {
+  id: string;
+  employeeId: string;
+  assignmentId: string;
+  date: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  status: AttendanceStatus;
+  actualWorkMinutes: number;
+  lateMinutes: number;
+  earlyLeaveMinutes: number;
+  notes?: string;
+}
+
+export interface WorkHoursStats {
+  employeeId: string;
+  employeeName: string;
+  totalDays: number;
+  totalWorkHours: number;
+  regularHours: number;
+  overtimeHours: number;
+  lateCount: number;
+  earlyLeaveCount: number;
+  absentCount: number;
+  attendanceRate: number;
+}
+
+export interface DailyAttendanceSummary {
+  date: string;
+  totalScheduled: number;
+  totalCheckedIn: number;
+  totalAbsent: number;
+  totalLate: number;
+  attendanceRate: number;
+}
+

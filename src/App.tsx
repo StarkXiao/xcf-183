@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame } from 'lucide-react';
+import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
 import StockCalculator from './components/StockCalculator';
@@ -13,8 +13,9 @@ import ScanVerificationModal from './components/ScanVerificationModal';
 import DiscrepancyReportModal from './components/DiscrepancyReportModal';
 import ProcessingBoard from './components/ProcessingBoard';
 import ShelfHeatmap from './components/ShelfHeatmap';
-import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep } from './types';
-import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations } from './data/mockData';
+import EmployeeAttendance from './components/EmployeeAttendance';
+import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord } from './types';
+import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords } from './data/mockData';
 import {
   getCurrentTime,
   checkOverdueTasks,
@@ -61,7 +62,7 @@ export default function App() {
     return [...mockHistoricalSnapshots, ...newOnes];
   });
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap'>('replenishment');
+  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance'>('replenishment');
   const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>(mockShiftRevenues);
   const [deliveries, setDeliveries] = useState<DeliveryAppointment[]>(mockDeliveries);
   const [suppliers] = useState<Supplier[]>(mockSuppliers);
@@ -69,6 +70,11 @@ export default function App() {
     sortProcessingTasks(checkProcessingOverdue(mockProcessingTasks, getCurrentTime()), getCurrentTime())
   );
   const [processingStations] = useState<ProcessingStation[]>(mockProcessingStations);
+  const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
+  const [shiftConfigs, setShiftConfigs] = useState<ShiftConfig[]>(mockShiftConfigs);
+  const [workAreas] = useState<WorkArea[]>(mockWorkAreas);
+  const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>(mockShiftAssignments);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(mockAttendanceRecords);
 
   const selectedSnapshot = useMemo(() => {
     if (!selectedHistoryDate) return null;
@@ -118,7 +124,7 @@ export default function App() {
     });
 
     setProcessingTasks(prevTasks => {
-      let updatedTasks = checkProcessingOverdue(prevTasks, now);
+      const updatedTasks = checkProcessingOverdue(prevTasks, now);
       const result = generateProcessingReminders(updatedTasks, reminders, now);
       if (result.reminders.length !== reminders.length) {
         queueMicrotask(() => setReminders(result.reminders));
@@ -497,6 +503,20 @@ export default function App() {
                   <Flame className="w-4 h-4" />
                   热力分析
                 </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('attendance');
+                    setSelectedHistoryDate(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'attendance'
+                      ? 'bg-white text-teal-600 shadow-sm font-medium'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  考勤管理
+                </button>
               </div>
               {activeTab === 'replenishment' && (
                 <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
@@ -573,6 +593,19 @@ export default function App() {
           />
         ) : activeTab === 'heatmap' ? (
           <ShelfHeatmap data={shelfHeatmapData} />
+        ) : activeTab === 'attendance' ? (
+          <EmployeeAttendance
+            employees={employees}
+            shifts={shiftConfigs}
+            areas={workAreas}
+            assignments={shiftAssignments}
+            attendanceRecords={attendanceRecords}
+            currentTime={currentTime}
+            onUpdateAssignments={setShiftAssignments}
+            onUpdateAttendanceRecords={setAttendanceRecords}
+            onUpdateShifts={setShiftConfigs}
+            onUpdateEmployees={setEmployees}
+          />
         ) : isHistoryMode ? (
           <div className="space-y-6">
             <HistoryTimeline

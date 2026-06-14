@@ -1,4 +1,4 @@
-import type { Product, ScheduleItem, Reminder, StockSnapshot, ShiftRevenue, PaymentMethod, Supplier, DeliveryAppointment, DeliveryItem, ProcessingTask, ProcessingStation, ProcessingStep } from '../types';
+import type { Product, ScheduleItem, Reminder, StockSnapshot, ShiftRevenue, PaymentMethod, Supplier, DeliveryAppointment, DeliveryItem, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord } from '../types';
 import { formatDate } from '../utils/historyUtils';
 
 export const mockProducts: Product[] = [
@@ -665,4 +665,64 @@ export const mockProcessingTasks: ProcessingTask[] = [
     warningLevel: 'normal',
     orderSource: 'batch',
   },
+];
+
+export const mockEmployees: Employee[] = [
+  { id: 'emp1', name: '张夜班', position: '店长', phone: '13800000001', status: 'active', avatarColor: 'bg-blue-500' },
+  { id: 'emp2', name: '李师傅', position: '鲜食加工员', phone: '13800000002', status: 'active', avatarColor: 'bg-green-500' },
+  { id: 'emp3', name: '王师傅', position: '补货员', phone: '13800000003', status: 'active', avatarColor: 'bg-orange-500' },
+  { id: 'emp4', name: '赵收银', position: '收银员', phone: '13800000004', status: 'active', avatarColor: 'bg-purple-500' },
+  { id: 'emp5', name: '刘理货', position: '理货员', phone: '13800000005', status: 'leave', avatarColor: 'bg-pink-500' },
+  { id: 'emp6', name: '陈兼职', position: '兼职员工', phone: '13800000006', status: 'off', avatarColor: 'bg-teal-500' },
+];
+
+export const mockShiftConfigs: ShiftConfig[] = [
+  { id: 'shift1', name: '早班', startTime: '06:00', endTime: '14:00', color: 'bg-yellow-100 text-yellow-800 border-yellow-300', isCrossDay: false, requiredStaff: 2 },
+  { id: 'shift2', name: '中班', startTime: '14:00', endTime: '22:00', color: 'bg-blue-100 text-blue-800 border-blue-300', isCrossDay: false, requiredStaff: 2 },
+  { id: 'shift3', name: '夜班', startTime: '22:00', endTime: '06:00', color: 'bg-indigo-100 text-indigo-800 border-indigo-300', isCrossDay: true, requiredStaff: 2 },
+  { id: 'shift4', name: '通宵班', startTime: '00:00', endTime: '08:00', color: 'bg-purple-100 text-purple-800 border-purple-300', isCrossDay: false, requiredStaff: 1 },
+];
+
+export const mockWorkAreas: WorkArea[] = [
+  { id: 'area1', name: '收银区', description: '收银、顾客服务', icon: 'receipt' },
+  { id: 'area2', name: '鲜食加工区', description: '饭团、便当制作', icon: 'chef' },
+  { id: 'area3', name: '补货理货区', description: '商品上架、补货', icon: 'package' },
+  { id: 'area4', name: '仓储区', description: '库存管理、收货', icon: 'warehouse' },
+  { id: 'area5', name: '保洁区', description: '清洁、整理', icon: 'sparkles' },
+];
+
+const getAttendanceDate = (daysOffset: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysOffset);
+  return formatDate(date);
+};
+
+export const mockShiftAssignments: ShiftAssignment[] = [
+  { id: 'assign1', employeeId: 'emp1', shiftId: 'shift3', areaId: 'area1', date: getAttendanceDate(0), notes: '店长值班' },
+  { id: 'assign2', employeeId: 'emp2', shiftId: 'shift3', areaId: 'area2', date: getAttendanceDate(0) },
+  { id: 'assign3', employeeId: 'emp3', shiftId: 'shift3', areaId: 'area3', date: getAttendanceDate(0) },
+  { id: 'assign4', employeeId: 'emp4', shiftId: 'shift2', areaId: 'area1', date: getAttendanceDate(0) },
+  { id: 'assign5', employeeId: 'emp1', shiftId: 'shift3', areaId: 'area1', date: getAttendanceDate(-1) },
+  { id: 'assign6', employeeId: 'emp2', shiftId: 'shift3', areaId: 'area2', date: getAttendanceDate(-1) },
+  { id: 'assign7', employeeId: 'emp3', shiftId: 'shift3', areaId: 'area3', date: getAttendanceDate(-1) },
+  { id: 'assign8', employeeId: 'emp4', shiftId: 'shift2', areaId: 'area1', date: getAttendanceDate(-1) },
+  { id: 'assign9', employeeId: 'emp5', shiftId: 'shift1', areaId: 'area3', date: getAttendanceDate(-1) },
+  { id: 'assign10', employeeId: 'emp1', shiftId: 'shift3', areaId: 'area1', date: getAttendanceDate(-2) },
+  { id: 'assign11', employeeId: 'emp2', shiftId: 'shift3', areaId: 'area2', date: getAttendanceDate(-2) },
+  { id: 'assign12', employeeId: 'emp3', shiftId: 'shift3', areaId: 'area3', date: getAttendanceDate(-2) },
+  { id: 'assign13', employeeId: 'emp4', shiftId: 'shift2', areaId: 'area1', date: getAttendanceDate(-2) },
+  { id: 'assign14', employeeId: 'emp6', shiftId: 'shift1', areaId: 'area4', date: getAttendanceDate(-2) },
+];
+
+export const mockAttendanceRecords: AttendanceRecord[] = [
+  { id: 'att1', employeeId: 'emp1', assignmentId: 'assign5', date: getAttendanceDate(-1), checkInTime: '21:50', checkOutTime: '06:05', status: 'checked_out', actualWorkMinutes: 495, lateMinutes: 0, earlyLeaveMinutes: 0, notes: '准时上下班' },
+  { id: 'att2', employeeId: 'emp2', assignmentId: 'assign6', date: getAttendanceDate(-1), checkInTime: '22:15', checkOutTime: '06:10', status: 'late', actualWorkMinutes: 475, lateMinutes: 15, earlyLeaveMinutes: 0, notes: '迟到15分钟' },
+  { id: 'att3', employeeId: 'emp3', assignmentId: 'assign7', date: getAttendanceDate(-1), checkInTime: '21:55', checkOutTime: '05:50', status: 'early_leave', actualWorkMinutes: 475, lateMinutes: 0, earlyLeaveMinutes: 10, notes: '提前10分钟下班' },
+  { id: 'att4', employeeId: 'emp4', assignmentId: 'assign8', date: getAttendanceDate(-1), checkInTime: '13:55', checkOutTime: '22:00', status: 'checked_out', actualWorkMinutes: 485, lateMinutes: 0, earlyLeaveMinutes: 0 },
+  { id: 'att5', employeeId: 'emp5', assignmentId: 'assign9', date: getAttendanceDate(-1), status: 'on_leave', actualWorkMinutes: 0, lateMinutes: 0, earlyLeaveMinutes: 0, notes: '请假一天' },
+  { id: 'att6', employeeId: 'emp1', assignmentId: 'assign10', date: getAttendanceDate(-2), checkInTime: '21:58', checkOutTime: '06:02', status: 'checked_out', actualWorkMinutes: 484, lateMinutes: 0, earlyLeaveMinutes: 0 },
+  { id: 'att7', employeeId: 'emp2', assignmentId: 'assign11', date: getAttendanceDate(-2), checkInTime: '22:00', checkOutTime: '06:00', status: 'checked_out', actualWorkMinutes: 480, lateMinutes: 0, earlyLeaveMinutes: 0 },
+  { id: 'att8', employeeId: 'emp3', assignmentId: 'assign12', date: getAttendanceDate(-2), checkInTime: '22:05', checkOutTime: '06:00', status: 'late', actualWorkMinutes: 475, lateMinutes: 5, earlyLeaveMinutes: 0 },
+  { id: 'att9', employeeId: 'emp4', assignmentId: 'assign13', date: getAttendanceDate(-2), checkInTime: '14:00', checkOutTime: '21:45', status: 'early_leave', actualWorkMinutes: 465, lateMinutes: 0, earlyLeaveMinutes: 15 },
+  { id: 'att10', employeeId: 'emp6', assignmentId: 'assign14', date: getAttendanceDate(-2), checkInTime: '06:00', checkOutTime: '14:00', status: 'checked_out', actualWorkMinutes: 480, lateMinutes: 0, earlyLeaveMinutes: 0 },
 ];
