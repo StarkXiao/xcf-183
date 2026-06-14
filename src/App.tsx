@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat } from 'lucide-react';
+import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
 import StockCalculator from './components/StockCalculator';
@@ -12,6 +12,7 @@ import DeliveryRegistrationModal from './components/DeliveryRegistrationModal';
 import ScanVerificationModal from './components/ScanVerificationModal';
 import DiscrepancyReportModal from './components/DiscrepancyReportModal';
 import ProcessingBoard from './components/ProcessingBoard';
+import ShelfHeatmap from './components/ShelfHeatmap';
 import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep } from './types';
 import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations } from './data/mockData';
 import {
@@ -39,6 +40,7 @@ import {
   advanceTaskStatus,
   updateStepStatus,
 } from './utils/processingUtils';
+import { generateShelfHeatmapData } from './utils/shelfHeatmapUtils';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -59,7 +61,7 @@ export default function App() {
     return [...mockHistoricalSnapshots, ...newOnes];
   });
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery' | 'processing'>('replenishment');
+  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap'>('replenishment');
   const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>(mockShiftRevenues);
   const [deliveries, setDeliveries] = useState<DeliveryAppointment[]>(mockDeliveries);
   const [suppliers] = useState<Supplier[]>(mockSuppliers);
@@ -401,6 +403,10 @@ export default function App() {
     return calculateProcessingStatistics(processingTasks, processingStations, currentTime);
   }, [processingTasks, processingStations, currentTime]);
 
+  const shelfHeatmapData = useMemo(() => {
+    return generateShelfHeatmapData(displayProducts, displaySchedule, 7);
+  }, [displayProducts, displaySchedule]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <header className={`bg-white shadow-sm border-b border-gray-100 ${isHistoryMode ? 'border-t-4 border-t-indigo-500' : ''}`}>
@@ -477,6 +483,20 @@ export default function App() {
                   <Receipt className="w-4 h-4" />
                   收银对账
                 </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('heatmap');
+                    setSelectedHistoryDate(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'heatmap'
+                      ? 'bg-white text-orange-600 shadow-sm font-medium'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Flame className="w-4 h-4" />
+                  热力分析
+                </button>
               </div>
               {activeTab === 'replenishment' && (
                 <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
@@ -551,6 +571,8 @@ export default function App() {
             shifts={shiftRevenues}
             onUpdateShift={handleUpdateShift}
           />
+        ) : activeTab === 'heatmap' ? (
+          <ShelfHeatmap data={shelfHeatmapData} days={7} />
         ) : isHistoryMode ? (
           <div className="space-y-6">
             <HistoryTimeline

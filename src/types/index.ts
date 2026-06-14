@@ -305,3 +305,72 @@ export interface ProcessingStatistics {
   }[];
 }
 
+export interface ShelfReplenishmentRecord {
+  id: string;
+  shelfLocation: string;
+  productId: string;
+  productName: string;
+  replenishTime: string;
+  quantity: number;
+  duration: number;
+  date: string;
+}
+
+export interface ShelfStats {
+  shelfLocation: string;
+  shelfZone: string;
+  shelfRow: number;
+  shelfColumn: number;
+  replenishCount: number;
+  totalDuration: number;
+  avgDuration: number;
+  totalQuantity: number;
+  heatLevel: 'low' | 'medium' | 'high' | 'critical';
+  products: string[];
+}
+
+export interface ShelfLayout {
+  zones: ShelfZone[];
+  rows: number;
+  columns: number;
+}
+
+export interface ShelfZone {
+  zoneId: string;
+  zoneName: string;
+  shelves: ShelfCell[];
+}
+
+export interface ShelfCell {
+  shelfLocation: string;
+  row: number;
+  column: number;
+  zone: string;
+  productCount: number;
+  heatLevel: 'low' | 'medium' | 'high' | 'critical';
+  stats?: ShelfStats;
+}
+
+export interface ShelfAdjustmentSuggestion {
+  id: string;
+  type: 'move_high_turnover' | 'move_low_turnover' | 'rearrange_zone' | 'optimize_path' | 'expand_capacity';
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  fromShelf?: string;
+  toShelf?: string;
+  productName?: string;
+  expectedBenefit: string;
+  reason: string;
+}
+
+export interface ShelfHeatmapData {
+  layout: ShelfLayout;
+  stats: ShelfStats[];
+  suggestions: ShelfAdjustmentSuggestion[];
+  totalReplenishments: number;
+  avgReplenishTime: number;
+  mostActiveShelf: string;
+  leastActiveShelf: string;
+}
+
