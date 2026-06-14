@@ -1,4 +1,5 @@
-import type { Product, ScheduleItem, Reminder } from '../types';
+import type { Product, ScheduleItem, Reminder, StockSnapshot } from '../types';
+import { formatDate } from '../utils/historyUtils';
 
 export const mockProducts: Product[] = [
   { id: '1', name: '可口可乐 500ml', category: 'beverage', stock: 15, maxStock: 30, price: 3.5, shelfLocation: 'A1-01' },
@@ -39,4 +40,74 @@ export const mockSchedule: ScheduleItem[] = [
 export const mockReminders: Reminder[] = [
   { id: 'r1', productId: '4', productName: '怡宝矿泉水 555ml', message: '库存不足，当前库存: 5', time: '22:00', type: 'low_stock' },
   { id: 'r5', productId: '7', productName: '饭团-金枪鱼', message: '补货任务已开始', time: '23:00', type: 'scheduled' },
+];
+
+const getDateStr = (daysAgo: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  return formatDate(date);
+};
+
+const shiftDate = (expirationDate: string | undefined, daysAgo: number): string | undefined => {
+  if (!expirationDate) return undefined;
+  const date = parseDate(expirationDate);
+  date.setDate(date.getDate() - daysAgo);
+  return formatDate(date);
+};
+
+const parseDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const createHistoricalProducts = (daysAgo: number): Product[] => {
+  const stockMultiplier = 1 - daysAgo * 0.05;
+  return mockProducts.map(p => ({
+    ...p,
+    stock: Math.max(1, Math.floor(p.stock * stockMultiplier + Math.random() * 5)),
+    expirationDate: shiftDate(p.expirationDate, daysAgo),
+  }));
+};
+
+const createHistoricalSchedule = (daysAgo: number): ScheduleItem[] => {
+  const completionRate = daysAgo >= 3 ? 1 : daysAgo >= 1 ? 0.75 : 0.2;
+  return mockSchedule.map((s, idx) => {
+    const shouldComplete = idx / mockSchedule.length < completionRate;
+    const shouldStart = idx / mockSchedule.length < completionRate + 0.1;
+    return {
+      ...s,
+      status: shouldComplete ? 'completed' : shouldStart ? 'in_progress' : 'pending',
+      actualStartTime: shouldStart ? s.time : undefined,
+      actualEndTime: shouldComplete
+        ? `${String(Math.min(23, parseInt(s.time.split(':')[0]) + Math.floor(s.estimatedDuration / 60))).padStart(2, '0')}:${String((parseInt(s.time.split(':')[1]) + s.estimatedDuration) % 60).padStart(2, '0')}`
+        : undefined,
+      isOverdue: !shouldStart && daysAgo >= 1,
+    };
+  });
+};
+
+export const mockHistoricalSnapshots: StockSnapshot[] = [
+  {
+    date: getDateStr(3),
+    products: createHistoricalProducts(3),
+    schedule: createHistoricalSchedule(3),
+    reminders: [],
+    snapshotTime: `${getDateStr(3)}T02:30:00Z`,
+  },
+  {
+    date: getDateStr(2),
+    products: createHistoricalProducts(2),
+    schedule: createHistoricalSchedule(2),
+    reminders: [],
+    snapshotTime: `${getDateStr(2)}T02:15:00Z`,
+  },
+  {
+    date: getDateStr(1),
+    products: createHistoricalProducts(1),
+    schedule: createHistoricalSchedule(1),
+    reminders: [
+      { id: `hr-${getDateStr(1)}-1`, productId: '4', productName: '怡宝矿泉水 555ml', message: '库存不足', time: '23:00', type: 'low_stock' },
+    ],
+    snapshotTime: `${getDateStr(1)}T01:45:00Z`,
+  },
 ];

@@ -51,3 +51,21 @@ export interface Statistics {
   overdueTasks: number;
   estimatedFinishTime?: string;
 }
+
+export interface StockSnapshot {
+  date: string;
+  products: Product[];
+  schedule: ScheduleItem[];
+  reminders: Reminder[];
+  snapshotTime: string;
+}
+
+export interface HistoryRecord {
+  date: string;
+  completedTasks: number;
+  totalTasks: number;
+  totalReplenished: number;
+  lowStockAtEnd: number;
+}
+
+export type ViewMode = 'current' | 'history';
