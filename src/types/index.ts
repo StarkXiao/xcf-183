@@ -449,3 +449,62 @@ export interface DailyAttendanceSummary {
   attendanceRate: number;
 }
 
+export type ScrapReason = 'near_expiry' | 'expired' | 'damaged' | 'quality_issue' | 'other';
+
+export type ScrapReviewStatus = 'pending' | 'approved' | 'rejected';
+
+export type ScrapConfirmationStatus = 'unconfirmed' | 'confirmed';
+
+export interface ScrapItem {
+  id: string;
+  productId: string;
+  productName: string;
+  category: 'beverage' | 'rice_ball' | 'expiring';
+  reason: ScrapReason;
+  quantity: number;
+  unitPrice: number;
+  totalLoss: number;
+  shelfLocation: string;
+  expirationDate?: string;
+  registeredBy: string;
+  registeredTime: string;
+  reviewStatus: ScrapReviewStatus;
+  reviewedBy?: string;
+  reviewedTime?: string;
+  reviewComment?: string;
+  confirmationStatus: ScrapConfirmationStatus;
+  confirmedBy?: string;
+  confirmedTime?: string;
+  notes?: string;
+  month: string;
+}
+
+export interface ScrapReasonOption {
+  value: ScrapReason;
+  label: string;
+  color: string;
+}
+
+export interface MonthlyLossStats {
+  month: string;
+  totalItems: number;
+  totalLoss: number;
+  approvedCount: number;
+  confirmedCount: number;
+  pendingCount: number;
+  rejectedCount: number;
+  byReason: {
+    reason: ScrapReason;
+    label: string;
+    count: number;
+    totalLoss: number;
+  }[];
+  byCategory: {
+    category: string;
+    label: string;
+    count: number;
+    totalLoss: number;
+  }[];
+  items: ScrapItem[];
+}
+
