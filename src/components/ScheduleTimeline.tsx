@@ -1,10 +1,13 @@
-import { Clock, CheckCircle2, Circle, PlayCircle, AlertTriangle, Clock3, Lock, Link2 } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, CheckCircle2, Circle, PlayCircle, AlertTriangle, Clock3, Lock, Link2, Settings } from 'lucide-react';
 import type { ScheduleItem } from '../types';
 import { getCurrentTime, calculateTimeDifference, sortScheduleByTime } from '../utils/scheduleUtils';
+import DependencyModal from './DependencyModal';
 
 interface ScheduleTimelineProps {
   schedule: ScheduleItem[];
   onStatusChange: (id: string, status: 'pending' | 'in_progress' | 'completed') => void;
+  onPrerequisitesChange: (taskId: string, prerequisiteIds: string[]) => void;
   selectedProductId: string | null;
 }
 
@@ -16,14 +19,31 @@ const statusConfig = {
   blocked: { icon: Lock, color: 'bg-amber-200 text-amber-700', bg: 'bg-amber-50', border: 'border-amber-300' },
 };
 
-export default function ScheduleTimeline({ schedule, onStatusChange, selectedProductId }: ScheduleTimelineProps) {
+export default function ScheduleTimeline({ schedule, onStatusChange, onPrerequisitesChange, selectedProductId }: ScheduleTimelineProps) {
   const referenceTime = getCurrentTime();
   const sortedSchedule = sortScheduleByTime(schedule, referenceTime);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<ScheduleItem | null>(null);
 
   const getNextStatus = (current: 'pending' | 'in_progress' | 'completed') => {
     if (current === 'pending') return 'in_progress';
     if (current === 'in_progress') return 'completed';
     return 'pending';
+  };
+
+  const handleOpenDependencyModal = (task: ScheduleItem) => {
+    setEditingTask(task);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseDependencyModal = () => {
+    setIsModalOpen(false);
+    setEditingTask(null);
+  };
+
+  const handleSaveDependencies = (taskId: string, prerequisiteIds: string[]) => {
+    onPrerequisitesChange(taskId, prerequisiteIds);
+    handleCloseDependencyModal();
   };
 
   const getStatusStyle = (item: ScheduleItem) => {
@@ -150,6 +170,16 @@ export default function ScheduleTimeline({ schedule, onStatusChange, selectedPro
                             依赖: {prerequisiteNames.join('、')}
                           </span>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDependencyModal(item);
+                          }}
+                          className="ml-1 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="设置前置依赖"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                       <h3 className="text-gray-700 mt-1 font-medium">{item.productName}</h3>
                       <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
@@ -204,6 +234,14 @@ export default function ScheduleTimeline({ schedule, onStatusChange, selectedPro
           })}
         </div>
       </div>
+
+      <DependencyModal
+        isOpen={isModalOpen}
+        task={editingTask}
+        allTasks={schedule}
+        onClose={handleCloseDependencyModal}
+        onSave={handleSaveDependencies}
+      />
     </div>
   );
 }

@@ -171,6 +171,19 @@ export default function App() {
     setReminders(prev => prev.filter(r => r.scheduleId !== id || r.type !== 'overdue'));
   };
 
+  const handlePrerequisitesChange = (taskId: string, prerequisiteIds: string[]) => {
+    if (isHistoryMode) return;
+    const now = getCurrentTime();
+    setSchedule(prev => {
+      let updated = prev.map(item => {
+        if (item.id !== taskId) return item;
+        return { ...item, prerequisiteIds };
+      });
+      updated = checkTaskDependencies(updated);
+      return recalculateSchedule(updated, now);
+    });
+  };
+
   const handleDismissReminder = (id: string) => {
     if (isHistoryMode) return;
     setReminders(prev => prev.filter(r => r.id !== id));
@@ -312,6 +325,7 @@ export default function App() {
                 <ScheduleTimeline 
                   schedule={displaySchedule} 
                   onStatusChange={handleScheduleStatusChange}
+                  onPrerequisitesChange={handlePrerequisitesChange}
                   selectedProductId={selectedProduct?.id ?? null}
                 />
               </div>
@@ -344,6 +358,7 @@ export default function App() {
                 <ScheduleTimeline 
                   schedule={displaySchedule} 
                   onStatusChange={handleScheduleStatusChange}
+                  onPrerequisitesChange={handlePrerequisitesChange}
                   selectedProductId={selectedProduct?.id ?? null}
                 />
               </div>
