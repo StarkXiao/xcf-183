@@ -1,9 +1,13 @@
-import { BarChart3, Package, AlertTriangle, Clock, CheckCircle, ListTodo, AlertCircle, Clock3, Zap, AlertTriangle as AlertTriangleIcon, Bell } from 'lucide-react';
-import type { Statistics, Product } from '../types';
+import { useState, useMemo } from 'react';
+import { BarChart3, Package, AlertTriangle, Clock, CheckCircle, ListTodo, AlertCircle, Clock3, Zap, AlertTriangle as AlertTriangleIcon, Bell, ChevronDown, ChevronUp, AlertOctagon } from 'lucide-react';
+import type { Statistics, Product, ScheduleItem, TimeSlotStats } from '../types';
+import { calculateTimeSlotStats } from '../utils/scheduleUtils';
 
 interface StatisticsSummaryProps {
   statistics: Statistics;
   products: Product[];
+  schedule: ScheduleItem[];
+  currentTime: string;
 }
 
 const statConfig = [
@@ -16,13 +20,27 @@ const statConfig = [
   { key: 'completedTasks', label: '已完成', icon: CheckCircle, color: 'bg-teal-500' },
 ];
 
-export default function StatisticsSummary({ statistics, products }: StatisticsSummaryProps) {
-  const completionRate = statistics.scheduledTasks > 0 
-    ? Math.round((statistics.completedTasks / statistics.scheduledTasks) * 100) 
+export default function StatisticsSummary({ statistics, products, schedule, currentTime }: StatisticsSummaryProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const completionRate = statistics.scheduledTasks > 0
+    ? Math.round((statistics.completedTasks / statistics.scheduledTasks) * 100)
     : 0;
 
   const beverageCount = products.filter(p => p.category === 'beverage').length;
   const riceBallCount = products.filter(p => p.category === 'rice_ball').length;
+
+  const timeSlotStats: TimeSlotStats[] = useMemo(() => {
+    return calculateTimeSlotStats(schedule, currentTime);
+  }, [schedule, currentTime]);
+
+  const avgCompletionRate = useMemo(() => {
+    const slotsWithTasks = timeSlotStats.filter(s => s.totalTasks > 0);
+    if (slotsWithTasks.length === 0) return 0;
+    return Math.round(slotsWithTasks.reduce((sum, s) => sum + s.completionRate, 0) / slotsWithTasks.length);
+  }, [timeSlotStats]);
+
+  const bottleneckCount = timeSlotStats.filter(s => s.isBottleneck).length;
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
@@ -67,10 +85,24 @@ export default function StatisticsSummary({ statistics, products }: StatisticsSu
         </div>
       )}
 
-      <div className="p-4 bg-gray-50 rounded-xl">
+      <div
+        className="p-4 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-gray-600">任务完成进度</span>
-          <span className="text-sm font-semibold text-indigo-600">{completionRate}%</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">任务完成进度</span>
+            {bottleneckCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs font-medium rounded-full">
+                <AlertOctagon className="w-3 h-3" />
+                {bottleneckCount} 个瓶颈时段
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-indigo-600">{completionRate}%</span>
+            {expanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+          </div>
         </div>
         <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
           <div
@@ -78,7 +110,90 @@ export default function StatisticsSummary({ statistics, products }: StatisticsSu
             style={{ width: `${completionRate}%` }}
           />
         </div>
+        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+          点击{expanded ? '收起' : '展开'}各时段完成率明细
+        </p>
       </div>
+
+      {expanded && (
+        <div className="mt-4 p-4 bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl border border-gray-200 animate-[fadeIn_0.2s_ease-out]">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Clock3 className="w-4 h-4 text-indigo-500" />
+              各时段完成率明细
+            </h3>
+            <div className="text-xs text-gray-500">
+              平均完成率: <span className="font-semibold text-indigo-600">{avgCompletionRate}%</span>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {timeSlotStats.map((slot) => (
+              <div
+                key={slot.timeSlot}
+                className={`p-3 rounded-lg transition-all ${
+                  slot.isBottleneck
+                    ? 'bg-red-50 border border-red-200'
+                    : slot.totalTasks > 0
+                    ? 'bg-white border border-gray-100'
+                    : 'bg-gray-50 border border-gray-100 opacity-60'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-800">{slot.timeSlot}</span>
+                    {slot.isBottleneck && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs font-medium rounded">
+                        <AlertOctagon className="w-3 h-3" />
+                        瓶颈
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-sm font-bold ${
+                      slot.isBottleneck ? 'text-red-600' : slot.totalTasks > 0 ? 'text-indigo-600' : 'text-gray-400'
+                    }`}>
+                      {slot.completionRate}%
+                    </span>
+                    <span className="text-xs text-gray-400 ml-2">
+                      {slot.completedTasks}/{slot.totalTasks} 任务
+                    </span>
+                  </div>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ${
+                      slot.isBottleneck
+                        ? 'bg-gradient-to-r from-red-400 to-red-500'
+                        : slot.totalTasks > 0
+                        ? 'bg-gradient-to-r from-indigo-400 to-purple-500'
+                        : 'bg-gray-300'
+                    }`}
+                    style={{ width: `${slot.totalTasks > 0 ? slot.completionRate : 0}%` }}
+                  />
+                </div>
+                {slot.isBottleneck && (
+                  <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    低于平均完成率 {avgCompletionRate}%，需重点关注
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-gradient-to-r from-indigo-400 to-purple-500"></span>
+                正常时段
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-gradient-to-r from-red-400 to-red-500"></span>
+                瓶颈时段（低于平均值）
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-3 mb-4">
         <div className="p-3 bg-blue-50 rounded-lg">

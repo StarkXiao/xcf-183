@@ -1,4 +1,4 @@
-import type { ScheduleItem, Reminder } from '../types';
+import type { ScheduleItem, Reminder, TimeSlotStats } from '../types';
 
 const DAY_MINUTES = 24 * 60;
 const DAY_THRESHOLD = 12;
@@ -223,4 +223,65 @@ export const calculateTotalEstimatedFinishTime = (schedule: ScheduleItem[], curr
   }
 
   return minutesToTime(totalMinutes);
+};
+
+const TIME_SLOTS = [
+  { slot: '20:00-22:00', start: '20:00', end: '22:00' },
+  { slot: '22:00-00:00', start: '22:00', end: '00:00' },
+  { slot: '00:00-02:00', start: '00:00', end: '02:00' },
+  { slot: '02:00-04:00', start: '02:00', end: '04:00' },
+  { slot: '04:00-06:00', start: '04:00', end: '06:00' },
+  { slot: '06:00-08:00', start: '06:00', end: '08:00' },
+];
+
+export const calculateTimeSlotStats = (schedule: ScheduleItem[], currentTime: string): TimeSlotStats[] => {
+  const stats = TIME_SLOTS.map(slot => ({
+    timeSlot: slot.slot,
+    startTime: slot.start,
+    endTime: slot.end,
+    totalTasks: 0,
+    completedTasks: 0,
+    completionRate: 0,
+    isBottleneck: false,
+  }));
+
+  for (const task of schedule) {
+    const taskTime = task.originalTime;
+    const taskMinutes = timeToMinutes(taskTime, currentTime);
+
+    for (let i = 0; i < stats.length; i++) {
+      const slot = stats[i];
+      const startMinutes = timeToMinutes(slot.startTime, currentTime);
+      const endMinutes = timeToMinutes(slot.endTime, currentTime);
+      const endAdjusted = endMinutes <= startMinutes ? endMinutes + DAY_MINUTES : endMinutes;
+      const taskAdjusted = taskMinutes < startMinutes && slot.startTime >= '12:00' ? taskMinutes + DAY_MINUTES : taskMinutes;
+
+      if (taskAdjusted >= startMinutes && taskAdjusted < endAdjusted) {
+        slot.totalTasks++;
+        if (task.status === 'completed') {
+          slot.completedTasks++;
+        }
+        break;
+      }
+    }
+  }
+
+  for (const slot of stats) {
+    slot.completionRate = slot.totalTasks > 0
+      ? Math.round((slot.completedTasks / slot.totalTasks) * 100)
+      : 0;
+  }
+
+  const slotsWithTasks = stats.filter(s => s.totalTasks > 0);
+  const avgRate = slotsWithTasks.length > 0
+    ? slotsWithTasks.reduce((sum, s) => sum + s.completionRate, 0) / slotsWithTasks.length
+    : 0;
+
+  for (const slot of stats) {
+    if (slot.totalTasks > 0 && slot.completionRate < avgRate) {
+      slot.isBottleneck = true;
+    }
+  }
+
+  return stats;
 };

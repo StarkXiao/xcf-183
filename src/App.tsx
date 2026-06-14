@@ -337,7 +337,7 @@ export default function App() {
                 />
               </div>
             </div>
-            <StatisticsSummary statistics={statistics} products={filteredProducts} />
+            <StatisticsSummary statistics={statistics} products={filteredProducts} schedule={displaySchedule} currentTime={currentTime} />
           </div>
         ) : (
           <>
@@ -373,7 +373,7 @@ export default function App() {
             </div>
 
             <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <StatisticsSummary statistics={statistics} products={filteredProducts} />
+              <StatisticsSummary statistics={statistics} products={filteredProducts} schedule={displaySchedule} currentTime={currentTime} />
               <HistoryTimeline
                 snapshots={snapshots}
                 selectedDate={selectedHistoryDate}

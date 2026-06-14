@@ -72,3 +72,14 @@ export interface HistoryRecord {
 }
 
 export type ViewMode = 'current' | 'history';
+
+export interface TimeSlotStats {
+  timeSlot: string;
+  startTime: string;
+  endTime: string;
+  totalTasks: number;
+  completedTasks: number;
+  completionRate: number;
+  isBottleneck: boolean;
+}
+
