@@ -1,4 +1,14 @@
-import type { Product, ScheduleItem, Reminder, StockSnapshot } from '../types';
+import type {
+  Product,
+  ScheduleItem,
+  Reminder,
+  StockSnapshot,
+  ReconciliationData,
+  ShiftRevenueSummary,
+  PaymentMethodStats,
+  CashDiscrepancyRecord,
+  PaymentRecord,
+} from '../types';
 import { formatDate } from '../utils/historyUtils';
 
 export const mockProducts: Product[] = [
@@ -111,3 +121,252 @@ export const mockHistoricalSnapshots: StockSnapshot[] = [
     snapshotTime: `${getDateStr(1)}T01:45:00Z`,
   },
 ];
+
+const TODAY = getDateStr(0);
+
+export const mockShiftSummary: ShiftRevenueSummary = {
+  id: 'shift-2026-06-14-night',
+  shiftName: '夜班',
+  shiftDate: TODAY,
+  startTime: '22:00',
+  endTime: '08:00',
+  operatorName: '张伟',
+  totalOrders: 186,
+  totalRevenue: 6842.5,
+  refundAmount: 128.0,
+  netRevenue: 6714.5,
+  isClosed: false,
+};
+
+export const mockPaymentStats: PaymentMethodStats[] = [
+  {
+    method: 'cash',
+    methodName: '现金',
+    totalAmount: 1850.0,
+    orderCount: 62,
+    refundCount: 2,
+    refundAmount: 35.0,
+    netAmount: 1815.0,
+    percentage: 27.03,
+  },
+  {
+    method: 'wechat',
+    methodName: '微信支付',
+    totalAmount: 2580.0,
+    orderCount: 78,
+    refundCount: 3,
+    refundAmount: 58.0,
+    netAmount: 2522.0,
+    percentage: 37.56,
+  },
+  {
+    method: 'alipay',
+    methodName: '支付宝',
+    totalAmount: 1960.5,
+    orderCount: 40,
+    refundCount: 1,
+    refundAmount: 25.0,
+    netAmount: 1935.5,
+    percentage: 28.82,
+  },
+  {
+    method: 'card',
+    methodName: '银行卡',
+    totalAmount: 380.0,
+    orderCount: 5,
+    refundCount: 0,
+    refundAmount: 0,
+    netAmount: 380.0,
+    percentage: 5.66,
+  },
+  {
+    method: 'other',
+    methodName: '其他',
+    totalAmount: 72.0,
+    orderCount: 1,
+    refundCount: 1,
+    refundAmount: 10.0,
+    netAmount: 62.0,
+    percentage: 0.93,
+  },
+];
+
+export const mockDiscrepancies: CashDiscrepancyRecord[] = [
+  {
+    id: 'disc-001',
+    shiftId: 'shift-2026-06-14-night',
+    type: 'short',
+    amount: 12.5,
+    reportedBy: '张伟',
+    reportedTime: '02:15',
+    description: '晚间23:40左右一笔现金交易找零有误，顾客离开后才发现，少收12.5元',
+    status: 'pending',
+  },
+  {
+    id: 'disc-002',
+    shiftId: 'shift-2026-06-13-night',
+    type: 'over',
+    amount: 5.0,
+    reportedBy: '李明',
+    reportedTime: '06:30',
+    description: '早间盘点时发现现金多出5元，可能是某笔交易少找零',
+    status: 'approved',
+    reviewedBy: '王店长',
+    reviewedTime: '09:15',
+    reviewComment: '金额较小，确认登记为长款',
+  },
+  {
+    id: 'disc-003',
+    shiftId: 'shift-2026-06-13-night',
+    type: 'short',
+    amount: 88.0,
+    reportedBy: '李明',
+    reportedTime: '07:00',
+    description: '凌晨2点一笔大额交易出错，经核对监控确认',
+    status: 'rejected',
+    reviewedBy: '王店长',
+    reviewedTime: '10:30',
+    reviewComment: '经查实，该笔交易已正常入账，不存在短款，请重新核对',
+  },
+];
+
+export const mockPaymentRecords: PaymentRecord[] = [
+  { id: 'pay-1', method: 'wechat', amount: 42.5, orderCount: 1, time: '22:05' },
+  { id: 'pay-2', method: 'cash', amount: 18.0, orderCount: 1, time: '22:12' },
+  { id: 'pay-3', method: 'alipay', amount: 35.0, orderCount: 1, time: '22:20' },
+  { id: 'pay-4', method: 'wechat', amount: 68.0, orderCount: 2, time: '22:35' },
+  { id: 'pay-5', method: 'cash', amount: 25.5, orderCount: 1, time: '22:48' },
+  { id: 'pay-6', method: 'wechat', amount: 156.0, orderCount: 4, time: '23:10' },
+  { id: 'pay-7', method: 'alipay', amount: 89.0, orderCount: 2, time: '23:30' },
+  { id: 'pay-8', method: 'card', amount: 128.0, orderCount: 1, time: '23:55' },
+];
+
+export const mockReconciliationData: ReconciliationData = {
+  summary: mockShiftSummary,
+  paymentStats: mockPaymentStats,
+  discrepancies: mockDiscrepancies,
+  expectedCashAmount: 1815.0,
+  actualCashAmount: 1802.5,
+};
+
+export const createHistoricalReconciliation = (daysAgo: number): ReconciliationData => {
+  const dateStr = getDateStr(daysAgo);
+  const multiplier = 0.9 + Math.random() * 0.2;
+  const baseRevenue = 6500 * multiplier;
+  const refundPct = 0.01 + Math.random() * 0.015;
+  const refundAmt = Math.round(baseRevenue * refundPct * 100) / 100;
+
+  const cashRatio = 0.25 + Math.random() * 0.05;
+  const wechatRatio = 0.35 + Math.random() * 0.05;
+  const alipayRatio = 0.28 + Math.random() * 0.03;
+  const cardRatio = 0.05 + Math.random() * 0.02;
+  const otherRatio = 1 - cashRatio - wechatRatio - alipayRatio - cardRatio;
+
+  const cashTotal = Math.round(baseRevenue * cashRatio * 100) / 100;
+  const wechatTotal = Math.round(baseRevenue * wechatRatio * 100) / 100;
+  const alipayTotal = Math.round(baseRevenue * alipayRatio * 100) / 100;
+  const cardTotal = Math.round(baseRevenue * cardRatio * 100) / 100;
+  const otherTotal = Math.round(baseRevenue * otherRatio * 100) / 100;
+
+  const summary: ShiftRevenueSummary = {
+    id: `shift-${dateStr}-night`,
+    shiftName: '夜班',
+    shiftDate: dateStr,
+    startTime: '22:00',
+    endTime: '08:00',
+    operatorName: daysAgo % 2 === 0 ? '张伟' : '李明',
+    totalOrders: Math.floor(180 * multiplier),
+    totalRevenue: baseRevenue,
+    refundAmount: refundAmt,
+    netRevenue: Math.round((baseRevenue - refundAmt) * 100) / 100,
+    isClosed: true,
+  };
+
+  const totalAmt = cashTotal + wechatTotal + alipayTotal + cardTotal + otherTotal;
+
+  const paymentStats: PaymentMethodStats[] = [
+    {
+      method: 'cash',
+      methodName: '现金',
+      totalAmount: cashTotal,
+      orderCount: Math.floor(60 * multiplier),
+      refundCount: Math.floor(Math.random() * 3),
+      refundAmount: Math.round(cashTotal * 0.015 * 100) / 100,
+      netAmount: Math.round(cashTotal * 0.985 * 100) / 100,
+      percentage: Math.round((cashTotal / totalAmt) * 10000) / 100,
+    },
+    {
+      method: 'wechat',
+      methodName: '微信支付',
+      totalAmount: wechatTotal,
+      orderCount: Math.floor(75 * multiplier),
+      refundCount: Math.floor(Math.random() * 4),
+      refundAmount: Math.round(wechatTotal * 0.02 * 100) / 100,
+      netAmount: Math.round(wechatTotal * 0.98 * 100) / 100,
+      percentage: Math.round((wechatTotal / totalAmt) * 10000) / 100,
+    },
+    {
+      method: 'alipay',
+      methodName: '支付宝',
+      totalAmount: alipayTotal,
+      orderCount: Math.floor(40 * multiplier),
+      refundCount: Math.floor(Math.random() * 2),
+      refundAmount: Math.round(alipayTotal * 0.012 * 100) / 100,
+      netAmount: Math.round(alipayTotal * 0.988 * 100) / 100,
+      percentage: Math.round((alipayTotal / totalAmt) * 10000) / 100,
+    },
+    {
+      method: 'card',
+      methodName: '银行卡',
+      totalAmount: cardTotal,
+      orderCount: Math.floor(5 * multiplier),
+      refundCount: 0,
+      refundAmount: 0,
+      netAmount: cardTotal,
+      percentage: Math.round((cardTotal / totalAmt) * 10000) / 100,
+    },
+    {
+      method: 'other',
+      methodName: '其他',
+      totalAmount: otherTotal,
+      orderCount: Math.floor(Math.random() * 2) + 1,
+      refundCount: Math.floor(Math.random() * 2),
+      refundAmount: Math.round(otherTotal * 0.05 * 100) / 100,
+      netAmount: Math.round(otherTotal * 0.95 * 100) / 100,
+      percentage: Math.round((otherTotal / totalAmt) * 10000) / 100,
+    },
+  ];
+
+  const discrepancies: CashDiscrepancyRecord[] = daysAgo >= 1
+    ? [
+        {
+          id: `disc-${dateStr}-001`,
+          shiftId: `shift-${dateStr}-night`,
+          type: Math.random() > 0.5 ? 'short' : 'over',
+          amount: Math.round((Math.random() * 20 + 5) * 100) / 100,
+          reportedBy: daysAgo % 2 === 0 ? '张伟' : '李明',
+          reportedTime: '06:00',
+          description: '日常收银差异登记',
+          status: 'approved',
+          reviewedBy: '王店长',
+          reviewedTime: '09:00',
+          reviewComment: '正常差异，确认通过',
+        },
+      ]
+    : [];
+
+  return {
+    summary,
+    paymentStats,
+    discrepancies,
+    expectedCashAmount: Math.round(cashTotal * 0.985 * 100) / 100,
+    actualCashAmount: Math.round(cashTotal * 0.985 * (0.995 + Math.random() * 0.01) * 100) / 100,
+  };
+};
+
+export const mockHistoricalReconciliations: Record<string, ReconciliationData> = {
+  [getDateStr(0)]: mockReconciliationData,
+  [getDateStr(1)]: createHistoricalReconciliation(1),
+  [getDateStr(2)]: createHistoricalReconciliation(2),
+  [getDateStr(3)]: createHistoricalReconciliation(3),
+};

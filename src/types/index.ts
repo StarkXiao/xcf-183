@@ -84,3 +84,62 @@ export interface TimeSlotStats {
   isBottleneck: boolean;
 }
 
+export type PaymentMethod = 'cash' | 'wechat' | 'alipay' | 'card' | 'other';
+export type CashDiscrepancyType = 'short' | 'over';
+export type DiscrepancyStatus = 'pending' | 'approved' | 'rejected';
+
+export interface PaymentRecord {
+  id: string;
+  method: PaymentMethod;
+  amount: number;
+  orderCount: number;
+  time: string;
+}
+
+export interface ShiftRevenueSummary {
+  id: string;
+  shiftName: string;
+  shiftDate: string;
+  startTime: string;
+  endTime: string;
+  operatorName: string;
+  totalOrders: number;
+  totalRevenue: number;
+  refundAmount: number;
+  netRevenue: number;
+  isClosed: boolean;
+}
+
+export interface PaymentMethodStats {
+  method: PaymentMethod;
+  methodName: string;
+  totalAmount: number;
+  orderCount: number;
+  refundCount: number;
+  refundAmount: number;
+  netAmount: number;
+  percentage: number;
+}
+
+export interface CashDiscrepancyRecord {
+  id: string;
+  shiftId: string;
+  type: CashDiscrepancyType;
+  amount: number;
+  reportedBy: string;
+  reportedTime: string;
+  description: string;
+  status: DiscrepancyStatus;
+  reviewedBy?: string;
+  reviewedTime?: string;
+  reviewComment?: string;
+}
+
+export interface ReconciliationData {
+  summary: ShiftRevenueSummary;
+  paymentStats: PaymentMethodStats[];
+  discrepancies: CashDiscrepancyRecord[];
+  expectedCashAmount: number;
+  actualCashAmount?: number;
+}
+
