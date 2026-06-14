@@ -25,7 +25,7 @@ import {
 export interface ScanVerificationModalProps {
   delivery: DeliveryAppointment;
   onVerifyComplete: (deliveryId: string, items: DeliveryAppointment['items']) => void;
-  onReportDiscrepancy: (productId: string) => void;
+  onReportDiscrepancy: (productId: string, updatedItem: DeliveryItem) => void;
   onClose: () => void;
 }
 
@@ -485,7 +485,7 @@ export default function ScanVerificationModal({
                               </button>
                               {hasDiff && (
                                 <button
-                                  onClick={() => onReportDiscrepancy(item.productId)}
+                                  onClick={() => onReportDiscrepancy(item.productId, item)}
                                   className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
                                   title="上报差异"
                                 >

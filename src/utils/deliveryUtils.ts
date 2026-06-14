@@ -240,8 +240,15 @@ export const addDeliveryDiscrepancy = (
   delivery: DeliveryAppointment,
   discrepancy: DeliveryDiscrepancy
 ): DeliveryAppointment => {
+  const updatedItems = delivery.items.map(item =>
+    item.productId === discrepancy.productId
+      ? { ...item, actualQuantity: discrepancy.actualQuantity, checked: true }
+      : item
+  );
+
   return {
     ...delivery,
+    items: updatedItems,
     status: 'discrepancy',
     discrepancies: [...delivery.discrepancies, discrepancy],
   };

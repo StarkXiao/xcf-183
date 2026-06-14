@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Truck,
   Plus,
@@ -17,7 +17,7 @@ import {
   Filter,
   BarChart3,
 } from 'lucide-react';
-import type { DeliveryAppointment, Supplier, Product } from '../types';
+import type { DeliveryAppointment, Supplier, Product, DeliveryItem } from '../types';
 import {
   DELIVERY_STATUS_CONFIG,
   DISCREPANCY_TYPE_CONFIG,
@@ -69,7 +69,23 @@ export default function SupplierDeliveryBoard({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedView, setSelectedView] = useState<'today' | 'upcoming' | 'all'>('today');
-  const [discrepancyItem, setDiscrepancyItem] = useState<{ delivery: DeliveryAppointment; productId: string } | null>(null);
+  const [discrepancyItem, setDiscrepancyItem] = useState<{ delivery: DeliveryAppointment; productId: string; updatedItem?: DeliveryItem } | null>(null);
+
+  const selectedDeliveryIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    selectedDeliveryIdRef.current = selectedDelivery?.id ?? null;
+  }, [selectedDelivery]);
+
+  useEffect(() => {
+    const id = selectedDeliveryIdRef.current;
+    if (id) {
+      const updated = deliveries.find(d => d.id === id);
+      if (updated) {
+        setSelectedDelivery(updated);
+      }
+    }
+  }, [deliveries]);
 
   const stats = useMemo(() => calculateDeliveryStats(deliveries, today), [deliveries, today]);
 
@@ -117,11 +133,30 @@ export default function SupplierDeliveryBoard({
   };
 
   const handleVerifyComplete = (deliveryId: string, items: DeliveryAppointment['items']) => {
+    const currentDelivery = selectedDelivery?.id === deliveryId ? selectedDelivery : deliveries.find(d => d.id === deliveryId);
+    
     onVerifyDelivery(deliveryId, items);
     
     items.forEach(item => {
-      if (item.actualQuantity && item.actualQuantity > 0) {
-        onUpdateStock(item.productId, item.actualQuantity);
+      if (!item.actualQuantity || item.actualQuantity <= 0) return;
+
+      let stockableQuantity = item.actualQuantity;
+
+      if (currentDelivery) {
+        const itemDiscrepancies = currentDelivery.discrepancies.filter(
+          d => d.productId === item.productId
+        );
+
+        itemDiscrepancies.forEach(discrepancy => {
+          if (discrepancy.type === 'damaged' || discrepancy.type === 'expired' || discrepancy.type === 'wrong_item') {
+            stockableQuantity -= discrepancy.difference > 0 ? discrepancy.difference : Math.abs(discrepancy.difference);
+          }
+        });
+      }
+
+      const finalQuantity = Math.max(0, stockableQuantity);
+      if (finalQuantity > 0) {
+        onUpdateStock(item.productId, finalQuantity);
       }
     });
     
@@ -129,8 +164,8 @@ export default function SupplierDeliveryBoard({
     setSelectedDelivery(null);
   };
 
-  const handleReportDiscrepancy = (delivery: DeliveryAppointment, productId: string) => {
-    setDiscrepancyItem({ delivery, productId });
+  const handleReportDiscrepancy = (delivery: DeliveryAppointment, productId: string, updatedItem?: DeliveryItem) => {
+    setDiscrepancyItem({ delivery, productId, updatedItem });
     setShowDiscrepancyModal(true);
   };
 
@@ -499,7 +534,7 @@ export default function SupplierDeliveryBoard({
         <ScanVerificationModal
           delivery={selectedDelivery}
           onVerifyComplete={handleVerifyComplete}
-          onReportDiscrepancy={(productId) => handleReportDiscrepancy(selectedDelivery, productId)}
+          onReportDiscrepancy={(productId, updatedItem) => handleReportDiscrepancy(selectedDelivery, productId, updatedItem)}
           onClose={() => {
             setShowVerificationModal(false);
             setSelectedDelivery(null);
@@ -511,6 +546,7 @@ export default function SupplierDeliveryBoard({
         <DiscrepancyReportModal
           delivery={discrepancyItem.delivery}
           productId={discrepancyItem.productId}
+          updatedItem={discrepancyItem.updatedItem}
           onSubmit={handleDiscrepancySubmit}
           onClose={() => {
             setShowDiscrepancyModal(false);

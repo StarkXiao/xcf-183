@@ -10,13 +10,14 @@ import {
   AlertCircle,
   Package,
 } from 'lucide-react';
-import type { DeliveryAppointment, DeliveryDiscrepancy } from '../types';
+import type { DeliveryAppointment, DeliveryDiscrepancy, DeliveryItem } from '../types';
 import { DISCREPANCY_TYPES } from '../data/mockData';
 import { createDiscrepancy } from '../utils/deliveryUtils';
 
 export interface DiscrepancyReportModalProps {
   delivery: DeliveryAppointment;
   productId: string;
+  updatedItem?: DeliveryItem;
   onSubmit: (discrepancy: DeliveryDiscrepancy) => void;
   onClose: () => void;
 }
@@ -24,10 +25,12 @@ export interface DiscrepancyReportModalProps {
 export default function DiscrepancyReportModal({
   delivery,
   productId,
+  updatedItem,
   onSubmit,
   onClose,
 }: DiscrepancyReportModalProps) {
-  const item = delivery.items.find(i => i.productId === productId);
+  const originalItem = delivery.items.find(i => i.productId === productId);
+  const item = updatedItem || originalItem;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [discrepancyType, setDiscrepancyType] = useState<'short' | 'over' | 'damaged' | 'expired' | 'wrong_item'>('short');
