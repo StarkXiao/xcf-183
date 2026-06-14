@@ -64,7 +64,7 @@ export default function App() {
     return displayProducts.filter((product) => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       if (selectedCategory === 'all') return matchesSearch;
-      if (selectedCategory === 'expiring') return matchesSearch && isExpiringProduct(product);
+      if (selectedCategory === 'expiring') return matchesSearch && (isExpiringProduct(product) || product.category === 'expiring');
       return matchesSearch && product.category === selectedCategory;
     });
   }, [displayProducts, selectedCategory, searchTerm]);
@@ -231,6 +231,55 @@ export default function App() {
     }
   };
 
+  const handleQuickRestock = (productId: string) => {
+    if (isHistoryMode) return;
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const amount = product.maxStock - product.stock;
+    if (amount <= 0) return;
+    handleStockUpdate(productId, amount);
+  };
+
+  const handleMarkOutOfStock = (productId: string) => {
+    if (isHistoryMode) return;
+    setProducts(prev => prev.map(product =>
+      product.id === productId
+        ? { ...product, outOfStockRegistered: true }
+        : product
+    ));
+
+    const product = products.find(p => p.id === productId);
+    if (product && !product.outOfStockRegistered) {
+      const now = getCurrentTime();
+      const newReminder: Reminder = {
+        id: `oos-${productId}-${Date.now()}`,
+        productId,
+        productName: product.name,
+        message: `已标记缺货登记，当前库存: ${product.stock}`,
+        time: now,
+        type: 'low_stock',
+      };
+      setReminders(prev => [...prev, newReminder]);
+    }
+
+    if (selectedProduct?.id === productId) {
+      setSelectedProduct({ ...selectedProduct, outOfStockRegistered: true });
+    }
+  };
+
+  const handleMoveToExpiring = (productId: string) => {
+    if (isHistoryMode) return;
+    setProducts(prev => prev.map(product =>
+      product.id === productId && product.category !== 'expiring'
+        ? { ...product, category: 'expiring' as const }
+        : product
+    ));
+
+    if (selectedProduct?.id === productId && selectedProduct.category !== 'expiring') {
+      setSelectedProduct({ ...selectedProduct, category: 'expiring' });
+    }
+  };
+
   const handleBackToCurrent = () => {
     setSelectedHistoryDate(null);
   };
@@ -319,6 +368,9 @@ export default function App() {
                   searchTerm={searchTerm}
                   onCategoryChange={setSelectedCategory}
                   onSearchChange={setSearchTerm}
+                  onQuickRestock={handleQuickRestock}
+                  onMarkOutOfStock={handleMarkOutOfStock}
+                  onMoveToExpiring={handleMoveToExpiring}
                 />
               </div>
               <div className="lg:col-span-5">
@@ -351,6 +403,9 @@ export default function App() {
                   searchTerm={searchTerm}
                   onCategoryChange={setSelectedCategory}
                   onSearchChange={setSearchTerm}
+                  onQuickRestock={handleQuickRestock}
+                  onMarkOutOfStock={handleMarkOutOfStock}
+                  onMoveToExpiring={handleMoveToExpiring}
                 />
               </div>
 

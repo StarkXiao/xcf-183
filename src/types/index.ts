@@ -9,6 +9,7 @@ export interface Product {
   price: number;
   expirationDate?: string;
   shelfLocation: string;
+  outOfStockRegistered?: boolean;
 }
 
 export interface ScheduleItem {

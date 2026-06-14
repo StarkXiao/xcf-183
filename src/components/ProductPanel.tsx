@@ -1,4 +1,5 @@
-import { Coffee, Cookie, Clock, Search, Filter, AlertTriangle, AlertCircle, Bell } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Coffee, Cookie, Clock, Search, Filter, AlertTriangle, AlertCircle, Bell, MoreVertical, PackagePlus, ClipboardList, ArrowRightCircle } from 'lucide-react';
 import type { Product } from '../types';
 import { getExpiryWarningLevel, getExpiryWarningConfig, getDaysUntilExpiry } from '../utils/expiryUtils';
 
@@ -10,6 +11,9 @@ interface ProductPanelProps {
   searchTerm: string;
   onCategoryChange: (category: string) => void;
   onSearchChange: (term: string) => void;
+  onQuickRestock?: (productId: string) => void;
+  onMarkOutOfStock?: (productId: string) => void;
+  onMoveToExpiring?: (productId: string) => void;
 }
 
 const categoryConfig = {
@@ -32,13 +36,36 @@ export default function ProductPanel({
   searchTerm,
   onCategoryChange,
   onSearchChange,
+  onQuickRestock,
+  onMarkOutOfStock,
+  onMoveToExpiring,
 }: ProductPanelProps) {
+  const [openMenuProductId, setOpenMenuProductId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuProductId(null);
+      }
+    };
+    if (openMenuProductId) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuProductId]);
 
   const getStockStatus = (stock: number, maxStock: number) => {
     const percentage = (stock / maxStock) * 100;
     if (percentage < 30) return { color: 'bg-red-500', status: '库存紧张' };
     if (percentage < 60) return { color: 'bg-yellow-500', status: '库存偏低' };
     return { color: 'bg-green-500', status: '库存充足' };
+  };
+
+  const handleMenuAction = (action: (productId: string) => void, productId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    action(productId);
+    setOpenMenuProductId(null);
   };
 
   return (
@@ -79,6 +106,7 @@ export default function ProductPanel({
           const expiryConfig = expiryLevel ? getExpiryWarningConfig(expiryLevel) : null;
           const daysLeft = product.expirationDate ? getDaysUntilExpiry(product.expirationDate) : null;
           const ExpiryIcon = expiryLevel ? expiryLevelIcons[expiryLevel] : null;
+          const isMenuOpen = openMenuProductId === product.id;
 
           return (
             <div
@@ -89,6 +117,8 @@ export default function ProductPanel({
                   ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50 shadow-md'
                   : expiryConfig
                   ? `${expiryConfig.border} ${expiryConfig.bg} hover:border-blue-300`
+                  : product.outOfStockRegistered
+                  ? 'border-purple-300 bg-purple-50 hover:border-blue-300'
                   : 'border-gray-100 hover:border-blue-300'
               }`}
             >
@@ -98,16 +128,70 @@ export default function ProductPanel({
                     <CategoryIcon className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-gray-800 text-sm">{product.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-gray-800 text-sm">{product.name}</h3>
+                      {product.outOfStockRegistered && (
+                        <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full flex items-center gap-1">
+                          <ClipboardList className="w-3 h-3" />
+                          缺货登记
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500 mt-0.5">货架位置: {product.shelfLocation}</p>
                   </div>
                 </div>
-                {expiryConfig && ExpiryIcon && (
-                  <span className={`px-2 py-1 ${expiryConfig.badgeBg} ${expiryConfig.badgeText} text-xs rounded-full flex items-center gap-1`}>
-                    <ExpiryIcon className="w-3 h-3" />
-                    {daysLeft !== null && daysLeft > 0 ? `${daysLeft}天后过期` : daysLeft === 0 ? '今日过期' : '已过期'}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {expiryConfig && ExpiryIcon && (
+                    <span className={`px-2 py-1 ${expiryConfig.badgeBg} ${expiryConfig.badgeText} text-xs rounded-full flex items-center gap-1`}>
+                      <ExpiryIcon className="w-3 h-3" />
+                      {daysLeft !== null && daysLeft > 0 ? `${daysLeft}天后过期` : daysLeft === 0 ? '今日过期' : '已过期'}
+                    </span>
+                  )}
+                  <div className="relative" ref={isMenuOpen ? menuRef : null}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuProductId(isMenuOpen ? null : product.id);
+                      }}
+                      className={`p-1 rounded-lg transition-colors ${
+                        isMenuOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    {isMenuOpen && (
+                      <div className="absolute right-0 top-8 z-20 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 overflow-hidden">
+                        <button
+                          onClick={(e) => onQuickRestock && handleMenuAction(onQuickRestock, product.id, e)}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                        >
+                          <PackagePlus className="w-4 h-4 text-blue-500" />
+                          一键补货
+                        </button>
+                        <button
+                          onClick={(e) => onMarkOutOfStock && handleMenuAction(onMarkOutOfStock, product.id, e)}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors"
+                        >
+                          <ClipboardList className="w-4 h-4 text-purple-500" />
+                          标记缺货登记
+                        </button>
+                        <div className="border-t border-gray-100 my-1" />
+                        <button
+                          onClick={(e) => onMoveToExpiring && handleMenuAction(onMoveToExpiring, product.id, e)}
+                          disabled={product.category === 'expiring'}
+                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
+                            product.category === 'expiring'
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-gray-700 hover:bg-orange-50 hover:text-orange-700'
+                          }`}
+                        >
+                          <ArrowRightCircle className="w-4 h-4 text-orange-500" />
+                          移至临期分类
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
