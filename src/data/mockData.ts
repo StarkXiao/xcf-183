@@ -1,4 +1,4 @@
-import type { Product, ScheduleItem, Reminder, StockSnapshot, ShiftRevenue, PaymentMethod, Supplier, DeliveryAppointment, DeliveryItem, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog } from '../types';
+import type { Product, ScheduleItem, Reminder, StockSnapshot, ShiftRevenue, PaymentMethod, Supplier, DeliveryAppointment, DeliveryItem, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog, PatrolRoute, PatrolRecord, AnomalyRecord, PatrolCheckItem } from '../types';
 import { formatDate } from '../utils/historyUtils';
 
 export const mockProducts: Product[] = [
@@ -1066,5 +1066,374 @@ export const mockHandoverLogs: ShiftHandoverLog[] = [
     status: 'completed',
     createdAt: '05:50',
     completedAt: '06:00',
+  },
+];
+
+const createCheckItems = (type: 'shelf' | 'cold' | 'storage' | 'entrance' | 'checkout' | 'backroom'): PatrolCheckItem[] => {
+  const templates: Record<string, PatrolCheckItem[]> = {
+    shelf: [
+      { id: `${type}-1`, name: '货架陈列整齐', type: 'boolean', required: true },
+      { id: `${type}-2`, name: '价签对应正确', type: 'boolean', required: true },
+      { id: `${type}-3`, name: '商品充足度', type: 'numeric', required: true, minValue: 0, maxValue: 100, unit: '%' },
+      { id: `${type}-4`, name: '临期商品标记', type: 'boolean', required: false },
+    ],
+    cold: [
+      { id: `${type}-1`, name: '制冷正常运行', type: 'boolean', required: true },
+      { id: `${type}-2`, name: '温度检查', type: 'numeric', required: true, minValue: -10, maxValue: 15, unit: '°C' },
+      { id: `${type}-3`, name: '密封良好', type: 'boolean', required: true },
+      { id: `${type}-4`, name: '冷凝水情况', type: 'text', required: false },
+    ],
+    storage: [
+      { id: `${type}-1`, name: '商品分类存放', type: 'boolean', required: true },
+      { id: `${type}-2`, name: '先进先出执行', type: 'boolean', required: true },
+      { id: `${type}-3`, name: '库存数量核查', type: 'boolean', required: false },
+    ],
+    entrance: [
+      { id: `${type}-1`, name: '门口清洁', type: 'boolean', required: true },
+      { id: `${type}-2`, name: '照明正常', type: 'boolean', required: true },
+      { id: `${type}-3`, name: '防滑措施', type: 'boolean', required: false },
+      { id: `${type}-4`, name: '玻璃门清洁', type: 'boolean', required: false },
+    ],
+    checkout: [
+      { id: `${type}-1`, name: '收银台整洁', type: 'boolean', required: true },
+      { id: `${type}-2`, name: 'POS机正常', type: 'boolean', required: true },
+      { id: `${type}-3`, name: '扫码枪状态', type: 'boolean', required: false },
+    ],
+    backroom: [
+      { id: `${type}-1`, name: '监控正常', type: 'boolean', required: true },
+      { id: `${type}-2`, name: '消防通道畅通', type: 'boolean', required: true },
+      { id: `${type}-3`, name: '水电安全', type: 'boolean', required: true },
+      { id: `${type}-4`, name: '垃圾处理', type: 'boolean', required: false },
+    ],
+  };
+  return templates[type] || templates.shelf;
+};
+
+export const mockPatrolRoutes: PatrolRoute[] = [
+  {
+    id: 'route-1',
+    name: '夜间标准巡店路线',
+    shift: 'night',
+    estimatedDuration: 45,
+    zones: ['入口区', 'A区饮料', 'B区鲜食', 'C区乳制品', '收银区', '仓储区', '后场区'],
+    totalCheckpoints: 8,
+    completedCheckpoints: 0,
+    checkpoints: [
+      { id: 'cp-1', patrolRouteId: 'route-1', checkpointName: '门店入口巡检', zone: '入口区', order: 1, status: 'pending', checkItems: createCheckItems('entrance'), plannedTime: '22:10', photos: [] },
+      { id: 'cp-2', patrolRouteId: 'route-1', checkpointName: 'A区饮料货架', zone: 'A区饮料', shelfLocation: 'A1-A3', order: 2, status: 'pending', checkItems: createCheckItems('shelf'), plannedTime: '22:15', photos: [] },
+      { id: 'cp-3', patrolRouteId: 'route-1', checkpointName: 'B区鲜食冷柜', zone: 'B区鲜食', shelfLocation: 'B1-B5', order: 3, status: 'pending', checkItems: createCheckItems('cold'), plannedTime: '22:22', photos: [] },
+      { id: 'cp-4', patrolRouteId: 'route-1', checkpointName: 'C区乳制品冷柜', zone: 'C区乳制品', shelfLocation: 'C1-C2', order: 4, status: 'pending', checkItems: createCheckItems('cold'), plannedTime: '22:30', photos: [] },
+      { id: 'cp-5', patrolRouteId: 'route-1', checkpointName: '收银区检查', zone: '收银区', order: 5, status: 'pending', checkItems: createCheckItems('checkout'), plannedTime: '22:38', photos: [] },
+      { id: 'cp-6', patrolRouteId: 'route-1', checkpointName: '仓储区巡检', zone: '仓储区', order: 6, status: 'pending', checkItems: createCheckItems('storage'), plannedTime: '22:45', photos: [] },
+      { id: 'cp-7', patrolRouteId: 'route-1', checkpointName: '后场区安全检查', zone: '后场区', order: 7, status: 'pending', checkItems: createCheckItems('backroom'), plannedTime: '22:52', photos: [] },
+      { id: 'cp-8', patrolRouteId: 'route-1', checkpointName: '整体复查巡视', zone: '入口区', order: 8, status: 'pending', checkItems: createCheckItems('shelf'), plannedTime: '23:00', photos: [] },
+    ],
+  },
+  {
+    id: 'route-2',
+    name: '凌晨重点巡检路线',
+    shift: 'night',
+    estimatedDuration: 25,
+    zones: ['B区鲜食', 'C区乳制品', '收银区'],
+    totalCheckpoints: 4,
+    completedCheckpoints: 0,
+    checkpoints: [
+      { id: 'cp-r2-1', patrolRouteId: 'route-2', checkpointName: 'B区鲜食温度复查', zone: 'B区鲜食', shelfLocation: 'B1-B5', order: 1, status: 'pending', checkItems: createCheckItems('cold'), plannedTime: '02:00', photos: [] },
+      { id: 'cp-r2-2', patrolRouteId: 'route-2', checkpointName: 'C区乳制品温度复查', zone: 'C区乳制品', shelfLocation: 'C1-C2', order: 2, status: 'pending', checkItems: createCheckItems('cold'), plannedTime: '02:10', photos: [] },
+      { id: 'cp-r2-3', patrolRouteId: 'route-2', checkpointName: '收银区夜班巡查', zone: '收银区', order: 3, status: 'pending', checkItems: createCheckItems('checkout'), plannedTime: '02:18', photos: [] },
+      { id: 'cp-r2-4', patrolRouteId: 'route-2', checkpointName: '后场区消防检查', zone: '后场区', order: 4, status: 'pending', checkItems: createCheckItems('backroom'), plannedTime: '02:25', photos: [] },
+    ],
+  },
+];
+
+const createHistoricalPatrolDate = (daysAgo: number): PatrolRecord[] => {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  const dateStr = formatDate(date);
+  return [
+    {
+      id: `patrol-hist-${daysAgo}-1`,
+      patrolRouteId: 'route-1',
+      patrolRouteName: '夜间标准巡店路线',
+      date: dateStr,
+      startTime: '22:10',
+      endTime: '22:58',
+      status: 'completed',
+      operatorId: 'emp1',
+      operatorName: '张夜班',
+      totalCheckpoints: 8,
+      completedCheckpoints: 8,
+      skippedCheckpoints: 0,
+      anomalyCount: daysAgo === 1 ? 2 : daysAgo === 2 ? 1 : 0,
+      durationMinutes: 48,
+      weather: daysAgo === 1 ? 'cloudy' : daysAgo === 2 ? 'rainy' : 'sunny',
+      temperature: 24,
+      checkpoints: mockPatrolRoutes[0].checkpoints.map((cp, idx) => ({
+        ...cp,
+        status: idx < 8 ? 'completed' : 'pending',
+        actualArrivalTime: `${22 + Math.floor(idx * 7 / 60)}:${String((idx * 7) % 60).padStart(2, '0')}`,
+        actualLeaveTime: `${22 + Math.floor((idx * 7 + 6) / 60)}:${String(((idx * 7 + 6) % 60)).padStart(2, '0')}`,
+        checkItems: cp.checkItems.map(item => ({
+          ...item,
+          result: item.type === 'boolean' ? true : item.type === 'numeric' ? (item.unit === '°C' ? 4 : 90) : '正常',
+        })),
+        photos: idx % 3 === 0 ? [
+          {
+            id: `photo-hist-${daysAgo}-${idx}`,
+            checkpointId: cp.id,
+            url: `https://picsum.photos/seed/patrol${daysAgo}${idx}/400/300`,
+            watermarkText: `夜班巡店 | 张夜班 | ${cp.zone}`,
+            watermarkTime: `${dateStr} ${22 + Math.floor(idx * 7 / 60)}:${String((idx * 7 + 3)).padStart(2, '0')}:00`,
+            watermarkLocation: cp.zone,
+            uploadedBy: '张夜班',
+            uploadedAt: `${dateStr} ${22 + Math.floor(idx * 7 / 60)}:${String((idx * 7 + 3)).padStart(2, '0')}:00`,
+          },
+        ] : [],
+        anomalies: daysAgo === 1 && idx === 2 ? [`anomaly-hist-${daysAgo}-1`] : [],
+      })),
+    },
+  ];
+};
+
+export const mockPatrolRecords: PatrolRecord[] = [
+  ...createHistoricalPatrolDate(2),
+  ...createHistoricalPatrolDate(1),
+  {
+    id: 'patrol-today-1',
+    patrolRouteId: 'route-1',
+    patrolRouteName: '夜间标准巡店路线',
+    date: formatDate(new Date()),
+    startTime: '22:10',
+    endTime: undefined,
+    status: 'in_progress',
+    operatorId: 'emp1',
+    operatorName: '张夜班',
+    totalCheckpoints: 8,
+    completedCheckpoints: 3,
+    skippedCheckpoints: 0,
+    anomalyCount: 1,
+    durationMinutes: undefined,
+    weather: 'cloudy',
+    temperature: 25,
+    checkpoints: mockPatrolRoutes[0].checkpoints.map((cp, idx) => {
+      if (idx === 0) {
+        return {
+          ...cp,
+          status: 'completed' as const,
+          actualArrivalTime: '22:10',
+          actualLeaveTime: '22:15',
+          checkItems: cp.checkItems.map(item => ({
+            ...item,
+            result: item.type === 'boolean' ? true : item.type === 'numeric' ? 95 : '正常',
+          })),
+          photos: [
+            {
+              id: 'photo-today-1',
+              checkpointId: cp.id,
+              url: 'https://picsum.photos/seed/entrance1/400/300',
+              watermarkText: '夜班巡店 | 张夜班 | 入口区',
+              watermarkTime: `${formatDate(new Date())} 22:12:00`,
+              watermarkLocation: '入口区',
+              uploadedBy: '张夜班',
+              uploadedAt: `${formatDate(new Date())} 22:12:00`,
+            },
+          ],
+          anomalies: [],
+        };
+      }
+      if (idx === 1) {
+        return {
+          ...cp,
+          status: 'completed' as const,
+          actualArrivalTime: '22:16',
+          actualLeaveTime: '22:22',
+          checkItems: cp.checkItems.map(item => ({
+            ...item,
+            result: item.type === 'boolean' ? true : item.type === 'numeric' ? 88 : '整齐',
+          })),
+          photos: [
+            {
+              id: 'photo-today-2',
+              checkpointId: cp.id,
+              url: 'https://picsum.photos/seed/shelfA/400/300',
+              watermarkText: '夜班巡店 | 张夜班 | A区饮料',
+              watermarkTime: `${formatDate(new Date())} 22:18:00`,
+              watermarkLocation: 'A区饮料',
+              uploadedBy: '张夜班',
+              uploadedAt: `${formatDate(new Date())} 22:18:00`,
+            },
+            {
+              id: 'photo-today-3',
+              checkpointId: cp.id,
+              url: 'https://picsum.photos/seed/shelfA2/400/300',
+              watermarkText: '夜班巡店 | 张夜班 | A区饮料',
+              watermarkTime: `${formatDate(new Date())} 22:20:00`,
+              watermarkLocation: 'A区饮料',
+              uploadedBy: '张夜班',
+              uploadedAt: `${formatDate(new Date())} 22:20:00`,
+            },
+          ],
+          anomalies: [],
+        };
+      }
+      if (idx === 2) {
+        return {
+          ...cp,
+          status: 'completed' as const,
+          actualArrivalTime: '22:23',
+          actualLeaveTime: '22:30',
+          checkItems: cp.checkItems.map(item => ({
+            ...item,
+            result: item.type === 'boolean' ? (item.id.includes('2') ? false : true) : item.type === 'numeric' ? 6 : '',
+          })),
+          photos: [
+            {
+              id: 'photo-today-4',
+              checkpointId: cp.id,
+              url: 'https://picsum.photos/seed/coldB/400/300',
+              watermarkText: '夜班巡店 | 张夜班 | B区鲜食',
+              watermarkTime: `${formatDate(new Date())} 22:25:00`,
+              watermarkLocation: 'B区鲜食',
+              uploadedBy: '张夜班',
+              uploadedAt: `${formatDate(new Date())} 22:25:00`,
+            },
+          ],
+          anomalies: ['anomaly-today-1'],
+        };
+      }
+      if (idx === 3) {
+        return {
+          ...cp,
+          status: 'in_progress' as const,
+          actualArrivalTime: '22:31',
+          actualLeaveTime: undefined,
+          checkItems: cp.checkItems.map((item, i) => i < 2 ? ({
+            ...item,
+            result: item.type === 'boolean' ? true : item.type === 'numeric' ? 3 : '',
+          }) : item),
+          photos: [],
+          anomalies: [],
+        };
+      }
+      return { ...cp, status: 'pending' as const, photos: [], anomalies: [] };
+    }),
+  },
+];
+
+export const mockAnomalyRecords: AnomalyRecord[] = [
+  {
+    id: 'anomaly-hist-1',
+    patrolRecordId: 'patrol-hist-1-1',
+    checkpointId: 'cp-3',
+    checkpointName: 'B区鲜食冷柜',
+    category: 'temperature',
+    severity: 'high',
+    title: 'B区鲜食冷柜温度偏高',
+    description: '巡检时发现B1层温度显示8°C，正常应为0-4°C，已调整温度后恢复正常。',
+    photos: [
+      'https://picsum.photos/seed/anom1/400/300',
+    ],
+    reportedBy: '张夜班',
+    reportedAt: `${getHandoverDate(1)} 22:25`,
+    status: 'closed',
+    assignedTo: '张夜班',
+    assignedAt: `${getHandoverDate(1)} 22:26`,
+    rectificationPlan: '调整冷柜温度设定，检查密封条，记录温度日志连续观察',
+    rectificationPhotos: [
+      'https://picsum.photos/seed/anom1fix/400/300',
+    ],
+    rectificationNotes: '已调低温度至2°C，密封条正常，后续1小时后复查温度为3°C已恢复',
+    rectifiedAt: `${getHandoverDate(1)} 23:30`,
+    verifiedBy: '李店长',
+    verifiedAt: `${getHandoverDate(0)} 09:00`,
+    verificationNotes: '整改到位，温度已恢复正常范围',
+    closedAt: `${getHandoverDate(0)} 09:15`,
+    closedBy: '李店长',
+    shelfLocation: 'B1-B5',
+    deadline: getHandoverDate(0),
+  },
+  {
+    id: 'anomaly-hist-2',
+    patrolRecordId: 'patrol-hist-1-1',
+    checkpointId: 'cp-6',
+    checkpointName: '仓储区巡检',
+    category: 'hygiene',
+    severity: 'medium',
+    title: '仓储区角落有积尘',
+    description: '仓储区西南角货架底部有积尘较多，需清洁不到位。',
+    photos: [
+      'https://picsum.photos/seed/anom2/400/300',
+    ],
+    reportedBy: '张夜班',
+    reportedAt: `${getHandoverDate(1)} 22:48`,
+    status: 'verified',
+    assignedTo: '王师傅',
+    assignedAt: `${getHandoverDate(1)} 22:50`,
+    rectificationPlan: '立即安排清洁，后续加强清洁检查',
+    rectificationPhotos: [
+      'https://picsum.photos/seed/anom2fix/400/300',
+    ],
+    rectificationNotes: '已完成清洁，仓储区整体清扫一遍',
+    rectifiedAt: `${getHandoverDate(1)} 23:40`,
+    verifiedBy: '李店长',
+    verifiedAt: `${getHandoverDate(0)} 09:05`,
+    verificationNotes: '清洁合格',
+    shelfLocation: '仓储区',
+    deadline: getHandoverDate(0),
+  },
+  {
+    id: 'anomaly-hist-2-1',
+    patrolRecordId: 'patrol-hist-2-1',
+    checkpointId: 'cp-4',
+    checkpointName: 'C区乳制品冷柜',
+    category: 'stock_issue',
+    severity: 'medium',
+    title: 'C1-03商品缺货',
+    description: '酸奶-原味缺货，库存仅余3盒，低于安全库存线。',
+    photos: [
+      'https://picsum.photos/seed/anom3/400/300',
+    ],
+    reportedBy: '王夜班',
+    reportedAt: `${getHandoverDate(2)} 22:32`,
+    status: 'closed',
+    assignedTo: '王夜班',
+    assignedAt: `${getHandoverDate(2)} 22:33`,
+    rectificationPlan: '已从仓储取货上架，通知白班补货',
+    rectificationPhotos: [],
+    rectificationNotes: '已补充库存至20盒',
+    rectifiedAt: `${getHandoverDate(2)} 22:45`,
+    verifiedBy: '李店长',
+    verifiedAt: `${getHandoverDate(1)} 09:00`,
+    verificationNotes: '已完成补货',
+    closedAt: `${getHandoverDate(1)} 09:10`,
+    closedBy: '李店长',
+    shelfLocation: 'C1-03',
+    productId: '15',
+    productName: '酸奶-原味',
+    deadline: getHandoverDate(1),
+  },
+  {
+    id: 'anomaly-today-1',
+    patrolRecordId: 'patrol-today-1',
+    checkpointId: 'cp-3',
+    checkpointName: 'B区鲜食冷柜',
+    category: 'shelf_display',
+    severity: 'medium',
+    title: 'B2-01三明治陈列不整齐',
+    description: 'B2层三明治陈列东倒西歪，部分价签错位，需要整理陈列并核对价签。',
+    photos: [
+      'https://picsum.photos/seed/anomtoday1/400/300',
+      'https://picsum.photos/seed/anomtoday1b/400/300',
+    ],
+    reportedBy: '张夜班',
+    reportedAt: `${formatDate(new Date())} 22:28`,
+    status: 'rectifying',
+    assignedTo: '王师傅',
+    assignedAt: `${formatDate(new Date())} 22:30`,
+    rectificationPlan: '重新整理陈列，对齐价签',
+    shelfLocation: 'B2-01',
+    productId: '11',
+    productName: '三明治-火腿蛋',
+    deadline: formatDate(new Date()),
   },
 ];

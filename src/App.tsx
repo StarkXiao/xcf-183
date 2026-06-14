@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2, ClipboardList, Zap } from 'lucide-react';
+import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2, ClipboardList, Zap, Route as RouteIcon } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
 import StockCalculator from './components/StockCalculator';
@@ -17,8 +17,9 @@ import EmployeeAttendance from './components/EmployeeAttendance';
 import ScrapManagement from './components/ScrapManagement';
 import ShiftHandoverLogComponent from './components/ShiftHandoverLog';
 import ReplenishmentForecast from './components/ReplenishmentForecast';
-import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog } from './types';
-import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems, mockHandoverLogs } from './data/mockData';
+import NightPatrol from './components/NightPatrol';
+import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog, PatrolRoute, PatrolRecord, AnomalyRecord } from './types';
+import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems, mockHandoverLogs, mockPatrolRoutes, mockPatrolRecords, mockAnomalyRecords } from './data/mockData';
 import {
   getCurrentTime,
   checkOverdueTasks,
@@ -66,7 +67,10 @@ export default function App() {
     return [...mockHistoricalSnapshots, ...newOnes];
   });
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'replenishment' | 'forecast' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap' | 'handover'>('replenishment');
+  const [activeTab, setActiveTab] = useState<'replenishment' | 'forecast' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap' | 'handover' | 'patrol'>('replenishment');
+  const [patrolRoutes] = useState<PatrolRoute[]>(mockPatrolRoutes);
+  const [patrolRecords, setPatrolRecords] = useState<PatrolRecord[]>(mockPatrolRecords);
+  const [anomalyRecords, setAnomalyRecords] = useState<AnomalyRecord[]>(mockAnomalyRecords);
   const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>(mockShiftRevenues);
   const [deliveries, setDeliveries] = useState<DeliveryAppointment[]>(mockDeliveries);
   const [suppliers] = useState<Supplier[]>(mockSuppliers);
@@ -575,6 +579,20 @@ export default function App() {
                   <ClipboardList className="w-4 h-4" />
                   交接班日志
                 </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('patrol');
+                    setSelectedHistoryDate(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'patrol'
+                      ? 'bg-white text-purple-600 shadow-sm font-medium'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <RouteIcon className="w-4 h-4" />
+                  巡店打卡
+                </button>
               </div>
               {activeTab === 'replenishment' && (
                 <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
@@ -680,6 +698,17 @@ export default function App() {
             logs={handoverLogs}
             onUpdateLogs={setHandoverLogs}
             currentTime={currentTime}
+          />
+        ) : activeTab === 'patrol' ? (
+          <NightPatrol
+            routes={patrolRoutes}
+            records={patrolRecords}
+            anomalies={anomalyRecords}
+            currentTime={currentTime}
+            operatorId="emp-1"
+            operatorName="张夜班"
+            onUpdateRecords={setPatrolRecords}
+            onUpdateAnomalies={setAnomalyRecords}
           />
         ) : isHistoryMode ? (
           <div className="space-y-6">

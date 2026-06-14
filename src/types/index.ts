@@ -665,3 +665,144 @@ export interface ForecastConfig {
   minConfidenceThreshold: number;
 }
 
+export type PatrolCheckpointStatus = 'pending' | 'in_progress' | 'completed' | 'skipped';
+export type PatrolStatus = 'not_started' | 'in_progress' | 'completed';
+export type AnomalyStatus = 'reported' | 'rectifying' | 'verified' | 'closed';
+export type AnomalySeverity = 'low' | 'medium' | 'high' | 'critical';
+export type AnomalyCategory = 'shelf_display' | 'stock_issue' | 'hygiene' | 'equipment' | 'lighting' | 'temperature' | 'safety' | 'other';
+
+export interface PatrolCheckpoint {
+  id: string;
+  patrolRouteId: string;
+  checkpointName: string;
+  zone: string;
+  shelfLocation?: string;
+  order: number;
+  status: PatrolCheckpointStatus;
+  checkItems: PatrolCheckItem[];
+  plannedTime?: string;
+  actualArrivalTime?: string;
+  actualLeaveTime?: string;
+  photos: PatrolPhoto[];
+  notes?: string;
+  anomalies?: string[];
+}
+
+export interface PatrolCheckItem {
+  id: string;
+  name: string;
+  type: 'boolean' | 'numeric' | 'text';
+  required: boolean;
+  result?: string | number | boolean;
+  minValue?: number;
+  maxValue?: number;
+  unit?: string;
+}
+
+export interface PatrolPhoto {
+  id: string;
+  checkpointId: string;
+  url: string;
+  thumbnailUrl?: string;
+  watermarkText: string;
+  watermarkTime: string;
+  watermarkLocation: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  gpsLatitude?: number;
+  gpsLongitude?: number;
+}
+
+export interface PatrolRoute {
+  id: string;
+  name: string;
+  shift: 'night' | 'day' | 'mid';
+  estimatedDuration: number;
+  checkpoints: PatrolCheckpoint[];
+  zones: string[];
+  totalCheckpoints: number;
+  completedCheckpoints: number;
+}
+
+export interface PatrolRecord {
+  id: string;
+  patrolRouteId: string;
+  patrolRouteName: string;
+  date: string;
+  startTime: string;
+  endTime?: string;
+  status: PatrolStatus;
+  operatorId: string;
+  operatorName: string;
+  checkpoints: PatrolCheckpoint[];
+  totalCheckpoints: number;
+  completedCheckpoints: number;
+  skippedCheckpoints: number;
+  anomalyCount: number;
+  durationMinutes?: number;
+  weather?: WeatherCondition;
+  temperature?: number;
+}
+
+export interface AnomalyRecord {
+  id: string;
+  patrolRecordId?: string;
+  checkpointId?: string;
+  checkpointName?: string;
+  category: AnomalyCategory;
+  severity: AnomalySeverity;
+  title: string;
+  description: string;
+  photos: string[];
+  reportedBy: string;
+  reportedAt: string;
+  status: AnomalyStatus;
+  assignedTo?: string;
+  assignedAt?: string;
+  rectificationPlan?: string;
+  rectificationPhotos?: string[];
+  rectificationNotes?: string;
+  rectifiedAt?: string;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  verificationNotes?: string;
+  closedAt?: string;
+  closedBy?: string;
+  deadline?: string;
+  shelfLocation?: string;
+  productId?: string;
+  productName?: string;
+}
+
+export interface AnomalyCategoryOption {
+  value: AnomalyCategory;
+  label: string;
+  icon: string;
+  color: string;
+}
+
+export interface PatrolStatistics {
+  totalRoutes: number;
+  completedRoutes: number;
+  inProgressRoutes: number;
+  totalCheckpoints: number;
+  completedCheckpoints: number;
+  averageCompletionRate: number;
+  totalAnomalies: number;
+  openAnomalies: number;
+  closedAnomalies: number;
+  averagePatrolDuration: number;
+  totalPhotos: number;
+  byZone: {
+    zone: string;
+    total: number;
+    completed: number;
+    anomalies: number;
+  }[];
+  byCategory: {
+    category: AnomalyCategory;
+    count: number;
+    open: number;
+  }[];
+}
+
