@@ -152,3 +152,75 @@ export interface ShiftRevenueSummary {
   isBalanced: boolean;
 }
 
+export type DeliveryStatus = 'pending' | 'registered' | 'arrived' | 'verifying' | 'completed' | 'cancelled' | 'discrepancy';
+
+export interface DeliveryItem {
+  productId: string;
+  productName: string;
+  expectedQuantity: number;
+  actualQuantity?: number;
+  unit: string;
+  price: number;
+  checked?: boolean;
+}
+
+export interface DeliveryDiscrepancy {
+  id: string;
+  deliveryId: string;
+  productId: string;
+  productName: string;
+  type: 'short' | 'over' | 'damaged' | 'expired' | 'wrong_item';
+  expectedQuantity: number;
+  actualQuantity: number;
+  difference: number;
+  description: string;
+  photos: string[];
+  reportedTime: string;
+  reportedBy: string;
+  status: 'pending' | 'resolved' | 'rejected';
+  resolution?: string;
+  resolvedTime?: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson: string;
+  phone: string;
+  category: string;
+}
+
+export interface DeliveryAppointment {
+  id: string;
+  deliveryNo: string;
+  supplierId: string;
+  supplierName: string;
+  contactPerson: string;
+  contactPhone: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  estimatedArrivalTime?: string;
+  actualArrivalTime?: string;
+  status: DeliveryStatus;
+  items: DeliveryItem[];
+  totalAmount: number;
+  remarks?: string;
+  registeredBy: string;
+  registeredTime: string;
+  verifiedBy?: string;
+  verifiedTime?: string;
+  discrepancies: DeliveryDiscrepancy[];
+  licensePlate?: string;
+  driverName?: string;
+  temperature?: string;
+  qrCode?: string;
+}
+
+export interface DeliverySlotAvailability {
+  timeSlot: string;
+  date: string;
+  available: boolean;
+  maxDeliveries: number;
+  currentBookings: number;
+}
+

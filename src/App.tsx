@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Store, Bell, BellOff, Clock, ListTodo, Receipt } from 'lucide-react';
+import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
 import StockCalculator from './components/StockCalculator';
@@ -7,8 +7,12 @@ import ReminderModal from './components/ReminderModal';
 import StatisticsSummary from './components/StatisticsSummary';
 import HistoryTimeline from './components/HistoryTimeline';
 import NightReconciliation from './components/NightReconciliation';
-import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue } from './types';
-import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues } from './data/mockData';
+import SupplierDeliveryBoard from './components/SupplierDeliveryBoard';
+import DeliveryRegistrationModal from './components/DeliveryRegistrationModal';
+import ScanVerificationModal from './components/ScanVerificationModal';
+import DiscrepancyReportModal from './components/DiscrepancyReportModal';
+import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy } from './types';
+import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries } from './data/mockData';
 import {
   getCurrentTime,
   checkOverdueTasks,
@@ -20,6 +24,12 @@ import {
 } from './utils/scheduleUtils';
 import { getExpiryStatistics, generateExpiryReminders, isExpiringProduct } from './utils/expiryUtils';
 import { formatDate, createSnapshot, saveSnapshot, loadAllSnapshots } from './utils/historyUtils';
+import {
+  getDeliveryNo,
+  generateQRCode,
+  updateDeliveryStatus,
+  addDeliveryDiscrepancy,
+} from './utils/deliveryUtils';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -40,8 +50,10 @@ export default function App() {
     return [...mockHistoricalSnapshots, ...newOnes];
   });
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation'>('replenishment');
+  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery'>('replenishment');
   const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>(mockShiftRevenues);
+  const [deliveries, setDeliveries] = useState<DeliveryAppointment[]>(mockDeliveries);
+  const [suppliers] = useState<Supplier[]>(mockSuppliers);
 
   const selectedSnapshot = useMemo(() => {
     if (!selectedHistoryDate) return null;
@@ -293,6 +305,58 @@ export default function App() {
     );
   };
 
+  const handleRegisterDelivery = (deliveryData: Omit<DeliveryAppointment, 'id' | 'deliveryNo' | 'qrCode' | 'registeredTime' | 'discrepancies'>) => {
+    const todayDeliveries = deliveries.filter(d => d.scheduledDate === deliveryData.scheduledDate);
+    const newDeliveryNo = getDeliveryNo(deliveryData.scheduledDate, todayDeliveries.length);
+    const newQRCode = generateQRCode(newDeliveryNo, deliveryData.supplierName);
+    const now = getCurrentTime();
+
+    const newDelivery: DeliveryAppointment = {
+      ...deliveryData,
+      id: `del-${Date.now()}`,
+      deliveryNo: newDeliveryNo,
+      qrCode: newQRCode,
+      registeredTime: now,
+      discrepancies: [],
+    };
+
+    setDeliveries(prev => [...prev, newDelivery]);
+  };
+
+  const handleVerifyDelivery = (deliveryId: string, items: DeliveryItem[]) => {
+    const now = getCurrentTime();
+    
+    setDeliveries(prev => prev.map(d => {
+      if (d.id !== deliveryId) return d;
+      
+      const hasDiscrepancies = items.some(item => 
+        item.actualQuantity !== undefined && item.actualQuantity !== item.expectedQuantity
+      );
+      
+      return {
+        ...d,
+        items,
+        status: hasDiscrepancies ? 'discrepancy' : 'completed',
+        verifiedBy: '张夜班',
+        verifiedTime: now,
+      };
+    }));
+  };
+
+  const handleReportDiscrepancy = (deliveryId: string, discrepancy: DeliveryDiscrepancy) => {
+    setDeliveries(prev => prev.map(d => {
+      if (d.id !== deliveryId) return d;
+      return addDeliveryDiscrepancy(d, discrepancy);
+    }));
+  };
+
+  const handleUpdateDeliveryStatus = (deliveryId: string, status: DeliveryAppointment['status']) => {
+    setDeliveries(prev => prev.map(d => {
+      if (d.id !== deliveryId) return d;
+      return updateDeliveryStatus(d, status, '张夜班');
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <header className={`bg-white shadow-sm border-b border-gray-100 ${isHistoryMode ? 'border-t-4 border-t-indigo-500' : ''}`}>
@@ -326,6 +390,20 @@ export default function App() {
                 >
                   <ListTodo className="w-4 h-4" />
                   补货排程
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('delivery');
+                    setSelectedHistoryDate(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'delivery'
+                      ? 'bg-white text-blue-600 shadow-sm font-medium'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Truck className="w-4 h-4" />
+                  送货预约
                 </button>
                 <button
                   onClick={() => {
@@ -387,7 +465,21 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'reconciliation' ? (
+        {activeTab === 'delivery' ? (
+          <SupplierDeliveryBoard
+            deliveries={deliveries}
+            suppliers={suppliers}
+            products={products}
+            onRegisterDelivery={handleRegisterDelivery}
+            onVerifyDelivery={handleVerifyDelivery}
+            onReportDiscrepancy={handleReportDiscrepancy}
+            onUpdateStatus={handleUpdateDeliveryStatus}
+            onUpdateStock={handleStockUpdate}
+            DeliveryRegistrationModal={DeliveryRegistrationModal}
+            ScanVerificationModal={ScanVerificationModal}
+            DiscrepancyReportModal={DiscrepancyReportModal}
+          />
+        ) : activeTab === 'reconciliation' ? (
           <NightReconciliation
             shifts={shiftRevenues}
             onUpdateShift={handleUpdateShift}
