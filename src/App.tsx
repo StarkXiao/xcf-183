@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2, ClipboardList } from 'lucide-react';
+import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2, ClipboardList, Zap } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
 import StockCalculator from './components/StockCalculator';
@@ -16,6 +16,7 @@ import ShelfHeatmap from './components/ShelfHeatmap';
 import EmployeeAttendance from './components/EmployeeAttendance';
 import ScrapManagement from './components/ScrapManagement';
 import ShiftHandoverLogComponent from './components/ShiftHandoverLog';
+import ReplenishmentForecast from './components/ReplenishmentForecast';
 import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog } from './types';
 import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems, mockHandoverLogs } from './data/mockData';
 import {
@@ -44,6 +45,7 @@ import {
   updateStepStatus,
 } from './utils/processingUtils';
 import { generateShelfHeatmapData } from './utils/shelfHeatmapUtils';
+import { generateForecast } from './utils/forecastUtils';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -64,7 +66,7 @@ export default function App() {
     return [...mockHistoricalSnapshots, ...newOnes];
   });
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap' | 'handover'>('replenishment');
+  const [activeTab, setActiveTab] = useState<'replenishment' | 'forecast' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap' | 'handover'>('replenishment');
   const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>(mockShiftRevenues);
   const [deliveries, setDeliveries] = useState<DeliveryAppointment[]>(mockDeliveries);
   const [suppliers] = useState<Supplier[]>(mockSuppliers);
@@ -420,6 +422,13 @@ export default function App() {
     return generateShelfHeatmapData(displayProducts, snapshots, displaySchedule);
   }, [displayProducts, snapshots, displaySchedule]);
 
+  const forecastData = useMemo(() => {
+    return generateForecast(products, snapshots, {
+      forecastDays: 3,
+      safetyStockRatio: 0.3,
+    });
+  }, [products, snapshots]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <header className={`bg-white shadow-sm border-b border-gray-100 ${isHistoryMode ? 'border-t-4 border-t-indigo-500' : ''}`}>
@@ -453,6 +462,20 @@ export default function App() {
                 >
                   <ListTodo className="w-4 h-4" />
                   补货排程
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('forecast');
+                    setSelectedHistoryDate(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'forecast'
+                      ? 'bg-white text-emerald-600 shadow-sm font-medium'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Zap className="w-4 h-4" />
+                  智能预测
                 </button>
                 <button
                   onClick={() => {
@@ -586,7 +609,7 @@ export default function App() {
                 }`}
               >
                 {showReminders ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
-                {showReminders && effectiveReminders.length > 0 && !isHistoryMode && (activeTab === 'replenishment' || activeTab === 'processing') && (
+                {showReminders && effectiveReminders.length > 0 && !isHistoryMode && (activeTab === 'replenishment' || activeTab === 'forecast' || activeTab === 'processing') && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                     {effectiveReminders.length}
                   </span>
@@ -598,7 +621,12 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'processing' ? (
+        {activeTab === 'forecast' ? (
+          <ReplenishmentForecast
+            forecast={forecastData}
+            onReplenish={handleStockUpdate}
+          />
+        ) : activeTab === 'processing' ? (
           <ProcessingBoard
             tasks={processingTasks}
             stations={processingStations}
@@ -759,7 +787,7 @@ export default function App() {
         </div>
       </footer>
 
-      {showReminders && !isHistoryMode && (activeTab === 'replenishment' || activeTab === 'processing') && (
+      {showReminders && !isHistoryMode && (activeTab === 'replenishment' || activeTab === 'forecast' || activeTab === 'processing') && (
         <ReminderModal reminders={effectiveReminders} onDismiss={handleDismissReminder} />
       )}
     </div>
