@@ -572,3 +572,96 @@ export interface ShiftHandoverLog {
   completedAt?: string;
 }
 
+export type WeatherCondition = 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'hot' | 'cold' | 'stormy';
+
+export interface WeatherData {
+  date: string;
+  condition: WeatherCondition;
+  temperature: number;
+  humidity: number;
+  windSpeed: number;
+  precipitation: number;
+}
+
+export interface HolidayInfo {
+  date: string;
+  name: string;
+  type: 'national' | 'local' | 'weekend' | 'workday';
+  impactLevel: 'low' | 'medium' | 'high' | 'extreme';
+}
+
+export interface SalesRecord {
+  date: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  revenue: number;
+  weather?: WeatherData;
+  isHoliday?: boolean;
+  holidayType?: string;
+}
+
+export interface SalesTrend {
+  productId: string;
+  productName: string;
+  averageDailySales: number;
+  trendDirection: 'up' | 'down' | 'stable';
+  trendRate: number;
+  volatility: number;
+  weekendBoost: number;
+  holidayBoost: number;
+  weatherSensitivity: Record<WeatherCondition, number>;
+}
+
+export interface ReplenishmentSuggestion {
+  id: string;
+  productId: string;
+  productName: string;
+  category: string;
+  currentStock: number;
+  maxStock: number;
+  suggestedQuantity: number;
+  predictedDemand: number;
+  safetyStock: number;
+  confidence: number;
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  reason: string;
+  factors: {
+    historicalSales: number;
+    weatherImpact: number;
+    holidayImpact: number;
+    trendImpact: number;
+  };
+  shelfLocation: string;
+  price: number;
+  estimatedCost: number;
+  expectedSellThroughDays: number;
+}
+
+export interface ForecastResult {
+  forecastDate: string;
+  forecastPeriodDays: number;
+  suggestions: ReplenishmentSuggestion[];
+  totalSuggestedQuantity: number;
+  totalEstimatedCost: number;
+  weatherForecast: WeatherData[];
+  holidays: HolidayInfo[];
+  summary: {
+    criticalItems: number;
+    highPriorityItems: number;
+    mediumPriorityItems: number;
+    lowPriorityItems: number;
+    averageConfidence: number;
+  };
+}
+
+export interface ForecastConfig {
+  forecastDays: number;
+  safetyStockRatio: number;
+  historyDays: number;
+  weatherWeight: number;
+  holidayWeight: number;
+  trendWeight: number;
+  minConfidenceThreshold: number;
+}
+
