@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Package, TrendingDown, AlertTriangle, X, Info } from 'lucide-react';
 import type { Product } from '../types';
 
 interface StockCalculatorProps {
@@ -8,8 +8,117 @@ interface StockCalculatorProps {
   onReplenish: (productId: string, amount: number) => void;
 }
 
+interface OverCapacityModalProps {
+  product: Product;
+  requestedAmount: number;
+  maxAllowed: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function OverCapacityModal({ product, requestedAmount, maxAllowed, onConfirm, onCancel }: OverCapacityModalProps) {
+  const totalStock = product.stock + requestedAmount;
+  const overAmount = totalStock - product.maxStock;
+  const batches = Math.ceil(requestedAmount / maxAllowed);
+  
+  const batchPlan = () => {
+    const plan = [];
+    let remaining = requestedAmount;
+    for (let i = 0; i < batches; i++) {
+      const batchAmount = Math.min(remaining, maxAllowed);
+      plan.push(batchAmount);
+      remaining -= batchAmount;
+    }
+    return plan;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-amber-50">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <h3 className="font-semibold text-gray-800">补货量超出货架容量</h3>
+          </div>
+          <button
+            onClick={onCancel}
+            className="p-1 hover:bg-amber-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="text-center">
+            <h4 className="font-semibold text-gray-800 text-lg">{product.name}</h4>
+            <p className="text-sm text-gray-500 mt-1">货架位置：{product.shelfLocation}</p>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">容量超限警告</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  当前库存 <span className="font-semibold">{product.stock}</span> 件 + 
+                  补货 <span className="font-semibold">{requestedAmount}</span> 件 = 
+                  总计 <span className="font-bold text-red-600">{totalStock}</span> 件
+                </p>
+                <p className="text-sm text-amber-700 mt-1">
+                  货架最大容量：<span className="font-semibold">{product.maxStock}</span> 件
+                </p>
+                <p className="text-sm text-red-600 font-medium mt-2">
+                  超出容量：{overAmount} 件
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm font-medium text-blue-800 mb-3">💡 分批补货建议</p>
+            <div className="space-y-2">
+              <p className="text-sm text-blue-700">
+                建议分 <span className="font-bold text-blue-800">{batches}</span> 次补货：
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {batchPlan().map((amount, index) => (
+                  <div
+                    key={index}
+                    className="px-3 py-1.5 bg-white border border-blue-300 rounded-lg text-sm"
+                  >
+                    第{index + 1}批：<span className="font-semibold text-blue-700">{amount}</span> 件
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-blue-600 mt-2">
+                每次补货后货架将被填满，剩余部分下次再补
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-2.5 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              返回修改
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 py-2.5 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 transition-colors"
+            >
+              按最大容量补货
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StockCalculator({ products, selectedProduct, onReplenish }: StockCalculatorProps) {
   const [replenishAmount, setReplenishAmount] = useState(0);
+  const [showOverCapacityModal, setShowOverCapacityModal] = useState(false);
 
   useEffect(() => {
     if (selectedProduct) {
@@ -30,11 +139,32 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
     return 0;
   };
 
+  const isOverCapacity = () => {
+    if (!selectedProduct) return false;
+    return selectedProduct.stock + replenishAmount > selectedProduct.maxStock;
+  };
+
   const handleReplenish = () => {
     if (selectedProduct && replenishAmount > 0) {
-      onReplenish(selectedProduct.id, replenishAmount);
-      setReplenishAmount(0);
+      if (isOverCapacity()) {
+        setShowOverCapacityModal(true);
+      } else {
+        confirmReplenish();
+      }
     }
+  };
+
+  const confirmReplenish = () => {
+    if (selectedProduct && replenishAmount > 0) {
+      const actualAmount = Math.min(replenishAmount, calculateReplenish());
+      onReplenish(selectedProduct.id, actualAmount);
+      setReplenishAmount(0);
+      setShowOverCapacityModal(false);
+    }
+  };
+
+  const handleCancelOverCapacity = () => {
+    setShowOverCapacityModal(false);
   };
 
   return (
@@ -62,7 +192,7 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
             </div>
           </div>
 
-          <div className="p-4 bg-blue-50 rounded-lg">
+          <div className={`p-4 rounded-lg ${isOverCapacity() ? 'bg-amber-50' : 'bg-blue-50'}`}>
             <div className="flex items-center justify-between">
               <span className="text-gray-700">建议补货数量</span>
               <span className="text-xl font-bold text-blue-600">{calculateReplenish()}</span>
@@ -73,10 +203,13 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
                 <input
                   type="number"
                   min="1"
-                  max={calculateReplenish()}
                   value={replenishAmount}
-                  onChange={(e) => setReplenishAmount(Math.min(Number(e.target.value), calculateReplenish()))}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setReplenishAmount(Number(e.target.value) || 0)}
+                  className={`flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    isOverCapacity() 
+                      ? 'border-amber-400 focus:ring-amber-500 bg-amber-50' 
+                      : 'border-gray-200 focus:ring-blue-500'
+                  }`}
                   placeholder="输入数量"
                 />
                 <button
@@ -86,13 +219,23 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
                   最大值
                 </button>
               </div>
+              {isOverCapacity() && (
+                <div className="mt-2 flex items-center gap-1.5 text-amber-700 text-sm">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>补货量将超过货架容量</span>
+                </div>
+              )}
             </div>
             <button
               onClick={handleReplenish}
               disabled={replenishAmount <= 0}
-              className="w-full mt-4 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className={`w-full mt-4 py-3 text-white font-semibold rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${
+                isOverCapacity() 
+                  ? 'bg-amber-600 hover:bg-amber-700' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
-              确认补货
+              {isOverCapacity() ? '确认补货（超量）' : '确认补货'}
             </button>
           </div>
         </div>
@@ -121,6 +264,16 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
           </div>
         </div>
       </div>
+
+      {showOverCapacityModal && selectedProduct && (
+        <OverCapacityModal
+          product={selectedProduct}
+          requestedAmount={replenishAmount}
+          maxAllowed={calculateReplenish()}
+          onConfirm={confirmReplenish}
+          onCancel={handleCancelOverCapacity}
+        />
+      )}
     </div>
   );
 }
