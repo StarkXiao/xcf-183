@@ -334,6 +334,9 @@ export default function ScanVerificationModal({
                     </div>
                     <div className="text-sm text-gray-600 mb-1">
                       预期：{disc.expectedQuantity}，实收：{disc.actualQuantity}，差异：{disc.difference > 0 ? '+' : ''}{disc.difference}
+                      {disc.damagedQuantity !== undefined && disc.damagedQuantity > 0 && (
+                        <span className="ml-2 text-red-600 font-medium">，不可入库：{disc.damagedQuantity}</span>
+                      )}
                     </div>
                     <div className="text-sm text-gray-500 mb-2">{disc.description}</div>
                     {disc.photos.length > 0 && (

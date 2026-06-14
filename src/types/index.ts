@@ -174,6 +174,7 @@ export interface DeliveryDiscrepancy {
   expectedQuantity: number;
   actualQuantity: number;
   difference: number;
+  damagedQuantity?: number;
   description: string;
   photos: string[];
   reportedTime: string;

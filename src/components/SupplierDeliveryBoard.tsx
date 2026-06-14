@@ -149,7 +149,8 @@ export default function SupplierDeliveryBoard({
 
         itemDiscrepancies.forEach(discrepancy => {
           if (discrepancy.type === 'damaged' || discrepancy.type === 'expired' || discrepancy.type === 'wrong_item') {
-            stockableQuantity -= discrepancy.difference > 0 ? discrepancy.difference : Math.abs(discrepancy.difference);
+            const unusableQty = discrepancy.damagedQuantity ?? Math.max(0, Math.abs(discrepancy.difference));
+            stockableQuantity -= unusableQty;
           }
         });
       }

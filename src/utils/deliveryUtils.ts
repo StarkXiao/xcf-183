@@ -154,7 +154,8 @@ export const createDiscrepancy = (
   type: 'short' | 'over' | 'damaged' | 'expired' | 'wrong_item',
   description: string,
   photos: string[],
-  reportedBy: string
+  reportedBy: string,
+  damagedQuantity?: number
 ): DeliveryDiscrepancy => {
   const difference = (item.actualQuantity || 0) - item.expectedQuantity;
   
@@ -167,6 +168,7 @@ export const createDiscrepancy = (
     expectedQuantity: item.expectedQuantity,
     actualQuantity: item.actualQuantity || 0,
     difference,
+    damagedQuantity,
     description,
     photos,
     reportedTime: getCurrentTime(),

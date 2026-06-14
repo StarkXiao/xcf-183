@@ -38,6 +38,7 @@ export default function DiscrepancyReportModal({
   const [photos, setPhotos] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [damagedQuantity, setDamagedQuantity] = useState<number>(0);
 
   if (!item) {
     return null;
@@ -46,6 +47,8 @@ export default function DiscrepancyReportModal({
   const expectedQty = item.expectedQuantity;
   const actualQty = item.actualQuantity ?? item.expectedQuantity;
   const difference = actualQty - expectedQty;
+  const needsDamagedQty = discrepancyType === 'damaged' || discrepancyType === 'expired' || discrepancyType === 'wrong_item';
+  const maxDamagedQty = actualQty;
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -90,6 +93,9 @@ export default function DiscrepancyReportModal({
     if (photos.length === 0) {
       newErrors.push('请至少上传一张照片作为凭证');
     }
+    if (needsDamagedQty && (damagedQuantity <= 0 || damagedQuantity > maxDamagedQty)) {
+      newErrors.push(`请输入有效的问题数量（1 - ${maxDamagedQty}）`);
+    }
 
     if (newErrors.length > 0) {
       setErrors(newErrors);
@@ -105,7 +111,8 @@ export default function DiscrepancyReportModal({
         discrepancyType,
         description.trim(),
         photos,
-        '张夜班'
+        '张夜班',
+        needsDamagedQty ? damagedQuantity : undefined
       );
 
       onSubmit(discrepancy);
@@ -201,6 +208,45 @@ export default function DiscrepancyReportModal({
               ))}
             </div>
           </div>
+
+          {needsDamagedQty && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {typeConfig?.label || '问题'}数量 <span className="text-red-500">*</span>
+                <span className="text-gray-400 font-normal ml-2">（实收 {actualQty} {item.unit}，其中有问题的数量）</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDamagedQuantity(prev => Math.max(0, prev - 1))}
+                  className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xl transition-colors"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min={0}
+                  max={maxDamagedQty}
+                  value={damagedQuantity}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10) || 0;
+                    setDamagedQuantity(Math.max(0, Math.min(maxDamagedQty, val)));
+                  }}
+                  className="flex-1 px-4 py-2.5 text-center text-lg font-semibold border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDamagedQuantity(prev => Math.min(maxDamagedQty, prev + 1))}
+                  className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xl transition-colors"
+                >
+                  +
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                可入库数量：<span className="font-medium text-green-600">{Math.max(0, actualQty - damagedQuantity)} {item.unit}</span>
+              </p>
+            </div>
+          )}
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
