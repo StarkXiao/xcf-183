@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Package, TrendingDown, AlertTriangle, X, Info } from 'lucide-react';
+import { Package, TrendingDown, AlertTriangle, X, Info, ClipboardList, ClipboardCheck, PackagePlus, ArrowRightCircle } from 'lucide-react';
 import type { Product } from '../types';
 
 interface StockCalculatorProps {
   products: Product[];
   selectedProduct: Product | null;
   onReplenish: (productId: string, amount: number) => void;
+  onQuickRestock?: (productId: string) => void;
+  onMarkOutOfStock?: (productId: string, registered: boolean) => void;
+  onMoveToExpiring?: (productId: string) => void;
 }
 
 interface OverCapacityModalProps {
@@ -116,7 +119,7 @@ function OverCapacityModal({ product, requestedAmount, maxAllowed, onConfirm, on
   );
 }
 
-export default function StockCalculator({ products, selectedProduct, onReplenish }: StockCalculatorProps) {
+export default function StockCalculator({ products, selectedProduct, onReplenish, onQuickRestock, onMarkOutOfStock, onMoveToExpiring }: StockCalculatorProps) {
   const [replenishAmount, setReplenishAmount] = useState(0);
   const [showOverCapacityModal, setShowOverCapacityModal] = useState(false);
 
@@ -131,6 +134,7 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
 
   const lowStockProducts = products.filter(p => p.stock < p.maxStock * 0.3);
   const expiringProducts = products.filter(p => p.expirationDate && new Date(p.expirationDate) <= new Date());
+  const outOfStockProducts = products.filter(p => !!p.outOfStockRegistered);
 
   const calculateReplenish = () => {
     if (selectedProduct) {
@@ -177,7 +181,15 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
       {selectedProduct ? (
         <div className="space-y-4">
           <div className="p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-800">{selectedProduct.name}</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-800">{selectedProduct.name}</h3>
+              {selectedProduct.outOfStockRegistered && (
+                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full flex items-center gap-1">
+                  <ClipboardCheck className="w-3 h-3" />
+                  缺货登记
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-4 mt-3">
               <div className="text-center p-3 bg-white rounded-lg">
                 <p className="text-sm text-gray-500">当前库存</p>
@@ -189,6 +201,45 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
                 <p className="text-sm text-gray-500">最大库存</p>
                 <p className="text-2xl font-bold text-gray-800">{selectedProduct.maxStock}</p>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <p className="text-xs font-medium text-gray-600 mb-2">快捷操作</p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => onQuickRestock && onQuickRestock(selectedProduct.id)}
+                disabled={calculateReplenish() <= 0}
+                className="flex flex-col items-center gap-1 p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors disabled:bg-gray-50 disabled:text-gray-300 disabled:cursor-not-allowed"
+              >
+                <PackagePlus className="w-4 h-4" />
+                <span className="text-xs font-medium">一键补货</span>
+              </button>
+              <button
+                onClick={() => onMarkOutOfStock && onMarkOutOfStock(selectedProduct.id, !selectedProduct.outOfStockRegistered)}
+                className={`flex flex-col items-center gap-1 p-2.5 rounded-lg transition-colors ${
+                  selectedProduct.outOfStockRegistered
+                    ? 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                    : 'bg-purple-50 hover:bg-purple-100 text-purple-700'
+                }`}
+              >
+                {selectedProduct.outOfStockRegistered ? (
+                  <ClipboardCheck className="w-4 h-4" />
+                ) : (
+                  <ClipboardList className="w-4 h-4" />
+                )}
+                <span className="text-xs font-medium">
+                  {selectedProduct.outOfStockRegistered ? '取消缺货' : '缺货登记'}
+                </span>
+              </button>
+              <button
+                onClick={() => onMoveToExpiring && onMoveToExpiring(selectedProduct.id)}
+                disabled={selectedProduct.category === 'expiring'}
+                className="flex flex-col items-center gap-1 p-2.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors disabled:bg-gray-50 disabled:text-gray-300 disabled:cursor-not-allowed"
+              >
+                <ArrowRightCircle className="w-4 h-4" />
+                <span className="text-xs font-medium">移至临期</span>
+              </button>
             </div>
           </div>
 
@@ -247,7 +298,7 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
       )}
 
       <div className="mt-6 pt-4 border-t border-gray-100">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
             <AlertTriangle className="w-5 h-5 text-red-500" />
             <div>
@@ -260,6 +311,13 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
             <div>
               <p className="text-xs text-gray-500">即将过期</p>
               <p className="text-lg font-bold text-orange-600">{expiringProducts.length}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+            <ClipboardList className="w-5 h-5 text-purple-500" />
+            <div>
+              <p className="text-xs text-gray-500">缺货登记</p>
+              <p className="text-lg font-bold text-purple-600">{outOfStockProducts.length}</p>
             </div>
           </div>
         </div>

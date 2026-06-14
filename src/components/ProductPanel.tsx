@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Coffee, Cookie, Clock, Search, Filter, AlertTriangle, AlertCircle, Bell, MoreVertical, PackagePlus, ClipboardList, ArrowRightCircle } from 'lucide-react';
+import { Coffee, Cookie, Clock, Search, Filter, AlertTriangle, AlertCircle, Bell, MoreVertical, PackagePlus, ClipboardList, ArrowRightCircle, ClipboardCheck, Check } from 'lucide-react';
 import type { Product } from '../types';
 import { getExpiryWarningLevel, getExpiryWarningConfig, getDaysUntilExpiry } from '../utils/expiryUtils';
 
@@ -12,7 +12,7 @@ interface ProductPanelProps {
   onCategoryChange: (category: string) => void;
   onSearchChange: (term: string) => void;
   onQuickRestock?: (productId: string) => void;
-  onMarkOutOfStock?: (productId: string) => void;
+  onMarkOutOfStock?: (productId: string, registered: boolean) => void;
   onMoveToExpiring?: (productId: string) => void;
 }
 
@@ -62,9 +62,9 @@ export default function ProductPanel({
     return { color: 'bg-green-500', status: '库存充足' };
   };
 
-  const handleMenuAction = (action: (productId: string) => void, productId: string, e: React.MouseEvent) => {
+  const handleMenuAction = (action: (...args: any[]) => void, args: any[], e: React.MouseEvent) => {
     e.stopPropagation();
-    action(productId);
+    action(...args);
     setOpenMenuProductId(null);
   };
 
@@ -83,6 +83,7 @@ export default function ProductPanel({
             <option value="beverage">饮料</option>
             <option value="rice_ball">饭团/便当</option>
             <option value="expiring">临期商品</option>
+            <option value="out_of_stock">缺货登记</option>
           </select>
         </div>
       </div>
@@ -160,24 +161,36 @@ export default function ProductPanel({
                       <MoreVertical className="w-4 h-4" />
                     </button>
                     {isMenuOpen && (
-                      <div className="absolute right-0 top-8 z-20 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 overflow-hidden">
+                      <div className="absolute right-0 top-8 z-20 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-1 overflow-hidden">
                         <button
-                          onClick={(e) => onQuickRestock && handleMenuAction(onQuickRestock, product.id, e)}
+                          onClick={(e) => onQuickRestock && handleMenuAction(onQuickRestock, [product.id], e)}
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                         >
                           <PackagePlus className="w-4 h-4 text-blue-500" />
-                          一键补货
+                          <span className="flex-1 text-left">一键补货</span>
+                          <span className="text-xs text-gray-400">补满至最大库存</span>
                         </button>
                         <button
-                          onClick={(e) => onMarkOutOfStock && handleMenuAction(onMarkOutOfStock, product.id, e)}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors"
+                          onClick={(e) => onMarkOutOfStock && handleMenuAction(onMarkOutOfStock, [product.id, !product.outOfStockRegistered], e)}
+                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
+                            product.outOfStockRegistered
+                              ? 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                              : 'text-gray-700 hover:bg-purple-50 hover:text-purple-700'
+                          }`}
                         >
-                          <ClipboardList className="w-4 h-4 text-purple-500" />
-                          标记缺货登记
+                          {product.outOfStockRegistered ? (
+                            <ClipboardCheck className="w-4 h-4 text-purple-500" />
+                          ) : (
+                            <ClipboardList className="w-4 h-4 text-purple-500" />
+                          )}
+                          <span className="flex-1 text-left">
+                            {product.outOfStockRegistered ? '取消缺货登记' : '标记缺货登记'}
+                          </span>
+                          {product.outOfStockRegistered && <Check className="w-4 h-4 text-purple-600" />}
                         </button>
                         <div className="border-t border-gray-100 my-1" />
                         <button
-                          onClick={(e) => onMoveToExpiring && handleMenuAction(onMoveToExpiring, product.id, e)}
+                          onClick={(e) => onMoveToExpiring && handleMenuAction(onMoveToExpiring, [product.id], e)}
                           disabled={product.category === 'expiring'}
                           className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
                             product.category === 'expiring'
@@ -186,7 +199,8 @@ export default function ProductPanel({
                           }`}
                         >
                           <ArrowRightCircle className="w-4 h-4 text-orange-500" />
-                          移至临期分类
+                          <span className="flex-1 text-left">移至临期分类</span>
+                          {product.category === 'expiring' && <Check className="w-4 h-4 text-gray-300" />}
                         </button>
                       </div>
                     )}

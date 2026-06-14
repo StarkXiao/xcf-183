@@ -105,6 +105,7 @@ export default function App() {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       if (selectedCategory === 'all') return matchesSearch;
       if (selectedCategory === 'expiring') return matchesSearch && (isExpiringProduct(product) || product.category === 'expiring');
+      if (selectedCategory === 'out_of_stock') return matchesSearch && !!product.outOfStockRegistered;
       return matchesSearch && product.category === selectedCategory;
     });
   }, [displayProducts, selectedCategory, searchTerm]);
@@ -242,7 +243,7 @@ export default function App() {
     if (isHistoryMode) return;
     setProducts(prev => prev.map(product => 
       product.id === productId 
-        ? { ...product, stock: Math.min(product.stock + amount, product.maxStock) }
+        ? { ...product, stock: Math.min(product.stock + amount, product.maxStock), outOfStockRegistered: false }
         : product
     ));
 
@@ -255,7 +256,7 @@ export default function App() {
     const updatedProduct = products.find(p => p.id === productId);
     if (updatedProduct) {
       const newStock = Math.min(updatedProduct.stock + amount, updatedProduct.maxStock);
-      setSelectedProduct({ ...updatedProduct, stock: newStock });
+      setSelectedProduct({ ...updatedProduct, stock: newStock, outOfStockRegistered: false });
     }
   };
 
@@ -289,30 +290,32 @@ export default function App() {
     handleStockUpdate(productId, amount);
   };
 
-  const handleMarkOutOfStock = (productId: string) => {
+  const handleMarkOutOfStock = (productId: string, registered: boolean) => {
     if (isHistoryMode) return;
     setProducts(prev => prev.map(product =>
       product.id === productId
-        ? { ...product, outOfStockRegistered: true }
+        ? { ...product, outOfStockRegistered: registered }
         : product
     ));
 
-    const product = products.find(p => p.id === productId);
-    if (product && !product.outOfStockRegistered) {
-      const now = getCurrentTime();
-      const newReminder: Reminder = {
-        id: `oos-${productId}-${Date.now()}`,
-        productId,
-        productName: product.name,
-        message: `已标记缺货登记，当前库存: ${product.stock}`,
-        time: now,
-        type: 'low_stock',
-      };
-      setReminders(prev => [...prev, newReminder]);
+    if (registered) {
+      const product = products.find(p => p.id === productId);
+      if (product && !product.outOfStockRegistered) {
+        const now = getCurrentTime();
+        const newReminder: Reminder = {
+          id: `oos-${productId}-${Date.now()}`,
+          productId,
+          productName: product.name,
+          message: `已标记缺货登记，当前库存: ${product.stock}`,
+          time: now,
+          type: 'low_stock',
+        };
+        setReminders(prev => [...prev, newReminder]);
+      }
     }
 
     if (selectedProduct?.id === productId) {
-      setSelectedProduct({ ...selectedProduct, outOfStockRegistered: true });
+      setSelectedProduct({ ...selectedProduct, outOfStockRegistered: registered });
     }
   };
 
@@ -687,6 +690,9 @@ export default function App() {
                   products={displayProducts} 
                   selectedProduct={selectedProduct} 
                   onReplenish={handleStockUpdate}
+                  onQuickRestock={handleQuickRestock}
+                  onMarkOutOfStock={handleMarkOutOfStock}
+                  onMoveToExpiring={handleMoveToExpiring}
                 />
               </div>
             </div>
@@ -724,6 +730,9 @@ export default function App() {
                   products={displayProducts} 
                   selectedProduct={selectedProduct} 
                   onReplenish={handleStockUpdate}
+                  onQuickRestock={handleQuickRestock}
+                  onMarkOutOfStock={handleMarkOutOfStock}
+                  onMoveToExpiring={handleMoveToExpiring}
                 />
               </div>
             </div>
