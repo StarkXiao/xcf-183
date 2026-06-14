@@ -794,6 +794,7 @@ export const mockScrapItems: ScrapItem[] = [
     registeredBy: '李师傅',
     registeredTime: '22:00',
     reviewStatus: 'pending',
+    confirmationStatus: 'unconfirmed',
     month: getScrapMonth(0),
   },
   {
@@ -829,6 +830,7 @@ export const mockScrapItems: ScrapItem[] = [
     registeredBy: '李师傅',
     registeredTime: '00:30',
     reviewStatus: 'pending',
+    confirmationStatus: 'unconfirmed',
     month: getScrapMonth(0),
     notes: '口感异常，疑似存放温度不当',
   },

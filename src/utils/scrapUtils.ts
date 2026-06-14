@@ -55,14 +55,15 @@ export const getCategoryLabel = (category: ScrapItem['category']): string => {
 
 export const calculateMonthlyLossStats = (items: ScrapItem[], month: string): MonthlyLossStats => {
   const monthItems = items.filter(item => item.month === month);
+  const confirmedItems = monthItems.filter(i => i.reviewStatus === 'approved' && i.confirmationStatus === 'confirmed');
 
   const approvedCount = monthItems.filter(i => i.reviewStatus === 'approved').length;
-  const confirmedCount = monthItems.filter(i => i.confirmationStatus === 'confirmed').length;
+  const confirmedCount = confirmedItems.length;
   const pendingCount = monthItems.filter(i => i.reviewStatus === 'pending').length;
   const rejectedCount = monthItems.filter(i => i.reviewStatus === 'rejected').length;
 
   const reasonMap = new Map<ScrapReason, { count: number; totalLoss: number }>();
-  monthItems.forEach(item => {
+  confirmedItems.forEach(item => {
     const existing = reasonMap.get(item.reason) ?? { count: 0, totalLoss: 0 };
     reasonMap.set(item.reason, {
       count: existing.count + 1,
@@ -78,7 +79,7 @@ export const calculateMonthlyLossStats = (items: ScrapItem[], month: string): Mo
   }));
 
   const categoryMap = new Map<string, { count: number; totalLoss: number }>();
-  monthItems.forEach(item => {
+  confirmedItems.forEach(item => {
     const existing = categoryMap.get(item.category) ?? { count: 0, totalLoss: 0 };
     categoryMap.set(item.category, {
       count: existing.count + 1,
@@ -95,15 +96,15 @@ export const calculateMonthlyLossStats = (items: ScrapItem[], month: string): Mo
 
   return {
     month,
-    totalItems: monthItems.length,
-    totalLoss: Math.round(monthItems.reduce((sum, i) => sum + i.totalLoss, 0) * 100) / 100,
+    totalItems: confirmedItems.length,
+    totalLoss: Math.round(confirmedItems.reduce((sum, i) => sum + i.totalLoss, 0) * 100) / 100,
     approvedCount,
     confirmedCount,
     pendingCount,
     rejectedCount,
     byReason,
     byCategory,
-    items: monthItems,
+    items: confirmedItems,
   };
 };
 

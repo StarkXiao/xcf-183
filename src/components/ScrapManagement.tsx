@@ -458,10 +458,10 @@ function MonthlyReport({ stats }: { stats: MonthlyLossStats }) {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-2">
             <Package className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-500">报废总数</span>
+            <span className="text-sm text-gray-500">确认报废</span>
           </div>
           <p className="text-2xl font-bold text-gray-800">{stats.totalItems}</p>
-          <p className="text-xs text-gray-500 mt-1">已确认 {stats.confirmedCount} 项</p>
+          <p className="text-xs text-gray-500 mt-1">本月共登记 {stats.approvedCount + stats.pendingCount + stats.rejectedCount} 条</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-2">
@@ -469,7 +469,7 @@ function MonthlyReport({ stats }: { stats: MonthlyLossStats }) {
             <span className="text-sm text-gray-500">总损耗金额</span>
           </div>
           <p className="text-2xl font-bold text-red-600">{formatLossAmount(stats.totalLoss)}</p>
-          <p className="text-xs text-gray-500 mt-1">已确认 {formatLossAmount(stats.items.filter(i => i.confirmationStatus === 'confirmed').reduce((s, i) => s + i.totalLoss, 0))}</p>
+          <p className="text-xs text-gray-500 mt-1">仅含审核通过且已确认的记录</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-2">
