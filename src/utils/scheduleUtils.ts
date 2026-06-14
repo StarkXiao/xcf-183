@@ -78,7 +78,8 @@ export const sortScheduleByTime = (schedule: ScheduleItem[], referenceTime: stri
 };
 
 export const recalculateSchedule = (schedule: ScheduleItem[], currentTime: string): ScheduleItem[] => {
-  const sortedSchedule = sortScheduleByTime(schedule, currentTime);
+  const scheduleWithDeps = checkTaskDependencies(schedule);
+  const sortedSchedule = sortScheduleByTime(scheduleWithDeps, currentTime);
 
   let currentTimePointer = timeToMinutes(currentTime, currentTime);
   let hasOverdue = false;
@@ -93,6 +94,10 @@ export const recalculateSchedule = (schedule: ScheduleItem[], currentTime: strin
       const elapsed = currentTimePointer - timeToMinutes(taskStartTime, currentTime);
       const remaining = Math.max(0, task.estimatedDuration - elapsed);
       currentTimePointer = currentTimePointer + remaining;
+      return task;
+    }
+
+    if (task.isBlocked) {
       return task;
     }
 
@@ -158,15 +163,48 @@ export const generateOverdueReminders = (
   };
 };
 
+export const getBlockedPrerequisites = (task: ScheduleItem, schedule: ScheduleItem[]): ScheduleItem[] => {
+  if (!task.prerequisiteIds || task.prerequisiteIds.length === 0) return [];
+  return schedule.filter(s => 
+    task.prerequisiteIds!.includes(s.id) && s.status !== 'completed'
+  );
+};
+
+export const isTaskBlocked = (task: ScheduleItem, schedule: ScheduleItem[]): boolean => {
+  return getBlockedPrerequisites(task, schedule).length > 0;
+};
+
+export const getBlockReason = (task: ScheduleItem, schedule: ScheduleItem[]): string | undefined => {
+  const blocked = getBlockedPrerequisites(task, schedule);
+  if (blocked.length === 0) return undefined;
+  const names = blocked.map(b => b.productName).join('、');
+  return `等待前置任务完成: ${names}`;
+};
+
+export const checkTaskDependencies = (schedule: ScheduleItem[]): ScheduleItem[] => {
+  return schedule.map(task => {
+    if (task.status === 'completed') {
+      return { ...task, isBlocked: false, blockReason: undefined };
+    }
+    const blocked = isTaskBlocked(task, schedule);
+    const reason = getBlockReason(task, schedule);
+    return { ...task, isBlocked: blocked, blockReason: reason };
+  });
+};
+
 export const calculateTotalEstimatedFinishTime = (schedule: ScheduleItem[], currentTime: string): string | undefined => {
+  const scheduleWithDeps = checkTaskDependencies(schedule);
   const sortedPending = sortScheduleByTime(
-    schedule.filter(s => s.status !== 'completed'),
+    scheduleWithDeps.filter(s => s.status !== 'completed' && !s.isBlocked),
     currentTime
   );
 
-  if (sortedPending.length === 0) return undefined;
+  if (sortedPending.length === 0) {
+    const inProgressTask = scheduleWithDeps.find(s => s.status === 'in_progress');
+    if (!inProgressTask) return undefined;
+  }
 
-  const inProgressTask = sortedPending.find(s => s.status === 'in_progress');
+  const inProgressTask = scheduleWithDeps.find(s => s.status === 'in_progress');
   let totalMinutes = timeToMinutes(currentTime, currentTime);
 
   if (inProgressTask) {

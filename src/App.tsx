@@ -14,6 +14,8 @@ import {
   recalculateSchedule,
   generateOverdueReminders,
   calculateTotalEstimatedFinishTime,
+  checkTaskDependencies,
+  isTaskBlocked,
 } from './utils/scheduleUtils';
 import { getExpiryStatistics, generateExpiryReminders, isExpiringProduct } from './utils/expiryUtils';
 import { formatDate, createSnapshot, saveSnapshot, loadAllSnapshots } from './utils/historyUtils';
@@ -73,7 +75,8 @@ export default function App() {
     setCurrentTime(now);
 
     setSchedule(prevSchedule => {
-      let updatedSchedule = checkOverdueTasks(prevSchedule, now);
+      let updatedSchedule = checkTaskDependencies(prevSchedule);
+      updatedSchedule = checkOverdueTasks(updatedSchedule, now);
       updatedSchedule = recalculateSchedule(updatedSchedule, now);
       
       const result = generateOverdueReminders(updatedSchedule, reminders, now);
@@ -125,7 +128,14 @@ export default function App() {
     if (isHistoryMode) return;
     const now = getCurrentTime();
     setSchedule(prev => {
-      const updated = prev.map(item => {
+      const targetTask = prev.find(item => item.id === id);
+      if (!targetTask) return prev;
+
+      if (status === 'in_progress' && isTaskBlocked(targetTask, prev)) {
+        return prev;
+      }
+
+      let updated = prev.map(item => {
         if (item.id !== id) return item;
         
         const updates: Partial<ScheduleItem> = { status };
@@ -133,11 +143,15 @@ export default function App() {
         if (status === 'in_progress' && !item.actualStartTime) {
           updates.actualStartTime = now;
           updates.isOverdue = false;
+          updates.isBlocked = false;
+          updates.blockReason = undefined;
         }
         
         if (status === 'completed' && !item.actualEndTime) {
           updates.actualEndTime = now;
           updates.isOverdue = false;
+          updates.isBlocked = false;
+          updates.blockReason = undefined;
         }
         
         if (status === 'pending') {
@@ -148,6 +162,8 @@ export default function App() {
         
         return { ...item, ...updates };
       });
+
+      updated = checkTaskDependencies(updated);
       
       return recalculateSchedule(updated, now);
     });

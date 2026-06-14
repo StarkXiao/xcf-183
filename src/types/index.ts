@@ -25,6 +25,9 @@ export interface ScheduleItem {
   actualStartTime?: string;
   actualEndTime?: string;
   reminderSent?: boolean;
+  prerequisiteIds?: string[];
+  isBlocked?: boolean;
+  blockReason?: string;
 }
 
 export interface Reminder {
