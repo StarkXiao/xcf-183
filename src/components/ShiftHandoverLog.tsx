@@ -286,7 +286,7 @@ function AddExceptionModal({
   onSubmit,
 }: {
   onClose: () => void;
-  onSubmit: (severity: HandoverExceptionSeverity, category: string, description: string, actionTaken?: string, followUpRequired: boolean, followUpNotes?: string) => void;
+  onSubmit: (severity: HandoverExceptionSeverity, category: string, description: string, actionTaken?: string, followUpRequired?: boolean, followUpNotes?: string) => void;
 }) {
   const [severity, setSeverity] = useState<HandoverExceptionSeverity>('warning');
   const [category, setCategory] = useState(EXCEPTION_CATEGORIES[0]);
@@ -820,7 +820,7 @@ export default function ShiftHandoverLogComponent({ logs, onUpdateLogs }: ShiftH
     setShowAddTodo(false);
   }, [selectedLog, updateLog]);
 
-  const handleAddException = useCallback((severity: HandoverExceptionSeverity, category: string, description: string, actionTaken?: string, followUpRequired: boolean, followUpNotes?: string) => {
+  const handleAddException = useCallback((severity: HandoverExceptionSeverity, category: string, description: string, actionTaken?: string, followUpRequired?: boolean, followUpNotes?: string) => {
     if (!selectedLog) return;
     const exception = createHandoverException(severity, category, description, selectedLog.outgoingOperator, actionTaken, followUpRequired, followUpNotes);
     updateLog(addExceptionToLog(selectedLog, exception));
