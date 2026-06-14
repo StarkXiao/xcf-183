@@ -37,9 +37,10 @@ export interface Reminder {
   productName: string;
   message: string;
   time: string;
-  type: 'low_stock' | 'expiring' | 'scheduled' | 'overdue';
+  type: 'low_stock' | 'expiring' | 'scheduled' | 'overdue' | 'processing_overdue' | 'processing_warning';
   scheduleId?: string;
   expiryLevel?: ExpiryWarningLevel;
+  processingTaskId?: string;
 }
 
 export interface Statistics {
@@ -222,5 +223,84 @@ export interface DeliverySlotAvailability {
   available: boolean;
   maxDeliveries: number;
   currentBookings: number;
+}
+
+export type ProcessingStatus = 'queued' | 'preparing' | 'cooking' | 'assembling' | 'packaging' | 'completed' | 'cancelled';
+
+export type ProcessingPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface ProcessingStep {
+  id: string;
+  name: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'skipped';
+  startTime?: string;
+  endTime?: string;
+  estimatedDuration: number;
+  operator?: string;
+  notes?: string;
+}
+
+export interface ProcessingTask {
+  id: string;
+  productId: string;
+  productName: string;
+  category: 'rice_ball' | 'sandwich' | 'bento' | 'dessert' | 'other';
+  quantity: number;
+  status: ProcessingStatus;
+  priority: ProcessingPriority;
+  scheduledTime: string;
+  estimatedDuration: number;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  progress: number;
+  steps: ProcessingStep[];
+  operator?: string;
+  station: string;
+  isOverdue?: boolean;
+  overdueMinutes?: number;
+  warningLevel?: 'normal' | 'warning' | 'critical';
+  orderSource?: 'online' | 'in_store' | 'batch';
+  orderId?: string;
+  notes?: string;
+  reminderSent?: boolean;
+  temperatureCheck?: {
+    required: boolean;
+    actualTemp?: number;
+    targetTemp?: number;
+    checkedAt?: string;
+  };
+  qualityCheck?: {
+    required: boolean;
+    passed?: boolean;
+    checkedAt?: string;
+    checkedBy?: string;
+    notes?: string;
+  };
+}
+
+export interface ProcessingStation {
+  id: string;
+  name: string;
+  type: 'rice' | 'filling' | 'assembly' | 'packaging';
+  currentTaskId?: string;
+  status: 'idle' | 'busy' | 'maintenance';
+  efficiency: number;
+}
+
+export interface ProcessingStatistics {
+  totalTasks: number;
+  completedTasks: number;
+  inProgressTasks: number;
+  pendingTasks: number;
+  overdueTasks: number;
+  averageProcessingTime: number;
+  onTimeCompletionRate: number;
+  todayOutput: number;
+  defectiveRate: number;
+  stationUtilization: {
+    stationId: string;
+    stationName: string;
+    utilizationRate: number;
+  }[];
 }
 

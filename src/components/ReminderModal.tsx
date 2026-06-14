@@ -19,6 +19,8 @@ const typeConfig = {
   expiring: { icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200', label: '临期提醒' },
   scheduled: { icon: Bell, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', label: '排程提醒' },
   overdue: { icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-300', label: '逾期催办' },
+  processing_warning: { icon: AlertTriangle, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-300', label: '加工超时预警' },
+  processing_overdue: { icon: Zap, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-300', label: '加工严重超时' },
 };
 
 const getReminderStyle = (reminder: Reminder) => {

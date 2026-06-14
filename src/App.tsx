@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck } from 'lucide-react';
+import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
 import StockCalculator from './components/StockCalculator';
@@ -11,8 +11,9 @@ import SupplierDeliveryBoard from './components/SupplierDeliveryBoard';
 import DeliveryRegistrationModal from './components/DeliveryRegistrationModal';
 import ScanVerificationModal from './components/ScanVerificationModal';
 import DiscrepancyReportModal from './components/DiscrepancyReportModal';
-import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy } from './types';
-import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries } from './data/mockData';
+import ProcessingBoard from './components/ProcessingBoard';
+import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep } from './types';
+import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations } from './data/mockData';
 import {
   getCurrentTime,
   checkOverdueTasks,
@@ -30,6 +31,14 @@ import {
   updateDeliveryStatus,
   addDeliveryDiscrepancy,
 } from './utils/deliveryUtils';
+import {
+  checkProcessingOverdue,
+  generateProcessingReminders,
+  sortProcessingTasks,
+  calculateProcessingStatistics,
+  advanceTaskStatus,
+  updateStepStatus,
+} from './utils/processingUtils';
 
 export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -50,10 +59,14 @@ export default function App() {
     return [...mockHistoricalSnapshots, ...newOnes];
   });
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery'>('replenishment');
+  const [activeTab, setActiveTab] = useState<'replenishment' | 'reconciliation' | 'delivery' | 'processing'>('replenishment');
   const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>(mockShiftRevenues);
   const [deliveries, setDeliveries] = useState<DeliveryAppointment[]>(mockDeliveries);
   const [suppliers] = useState<Supplier[]>(mockSuppliers);
+  const [processingTasks, setProcessingTasks] = useState<ProcessingTask[]>(() => 
+    sortProcessingTasks(checkProcessingOverdue(mockProcessingTasks, getCurrentTime()), getCurrentTime())
+  );
+  const [processingStations] = useState<ProcessingStation[]>(mockProcessingStations);
 
   const selectedSnapshot = useMemo(() => {
     if (!selectedHistoryDate) return null;
@@ -100,6 +113,15 @@ export default function App() {
       }
       
       return result.updatedSchedule;
+    });
+
+    setProcessingTasks(prevTasks => {
+      let updatedTasks = checkProcessingOverdue(prevTasks, now);
+      const result = generateProcessingReminders(updatedTasks, reminders, now);
+      if (result.reminders.length !== reminders.length) {
+        queueMicrotask(() => setReminders(result.reminders));
+      }
+      return sortProcessingTasks(result.updatedTasks, now);
     });
   }, [reminders, isHistoryMode]);
 
@@ -357,6 +379,28 @@ export default function App() {
     }));
   };
 
+  const handleAdvanceProcessingTask = (taskId: string) => {
+    if (isHistoryMode) return;
+    setProcessingTasks(prev => {
+      let updated = advanceTaskStatus(prev, taskId, '张夜班');
+      updated = checkProcessingOverdue(updated, currentTime);
+      return sortProcessingTasks(updated, currentTime);
+    });
+  };
+
+  const handleUpdateProcessingStep = (taskId: string, stepId: string, status: ProcessingStep['status']) => {
+    if (isHistoryMode) return;
+    setProcessingTasks(prev => {
+      let updated = updateStepStatus(prev, taskId, stepId, status, '张夜班');
+      updated = checkProcessingOverdue(updated, currentTime);
+      return sortProcessingTasks(updated, currentTime);
+    });
+  };
+
+  const processingStatistics = useMemo(() => {
+    return calculateProcessingStatistics(processingTasks, processingStations, currentTime);
+  }, [processingTasks, processingStations, currentTime]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <header className={`bg-white shadow-sm border-b border-gray-100 ${isHistoryMode ? 'border-t-4 border-t-indigo-500' : ''}`}>
@@ -390,6 +434,20 @@ export default function App() {
                 >
                   <ListTodo className="w-4 h-4" />
                   补货排程
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('processing');
+                    setSelectedHistoryDate(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'processing'
+                      ? 'bg-white text-orange-600 shadow-sm font-medium'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <ChefHat className="w-4 h-4" />
+                  鲜食加工
                 </button>
                 <button
                   onClick={() => {
@@ -453,7 +511,7 @@ export default function App() {
                 }`}
               >
                 {showReminders ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
-                {showReminders && effectiveReminders.length > 0 && !isHistoryMode && activeTab === 'replenishment' && (
+                {showReminders && effectiveReminders.length > 0 && !isHistoryMode && (activeTab === 'replenishment' || activeTab === 'processing') && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                     {effectiveReminders.length}
                   </span>
@@ -465,7 +523,16 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'delivery' ? (
+        {activeTab === 'processing' ? (
+          <ProcessingBoard
+            tasks={processingTasks}
+            stations={processingStations}
+            statistics={processingStatistics}
+            currentTime={currentTime}
+            onAdvanceTask={handleAdvanceProcessingTask}
+            onUpdateStepStatus={handleUpdateProcessingStep}
+          />
+        ) : activeTab === 'delivery' ? (
           <SupplierDeliveryBoard
             deliveries={deliveries}
             suppliers={suppliers}
@@ -584,7 +651,7 @@ export default function App() {
         </div>
       </footer>
 
-      {showReminders && !isHistoryMode && activeTab === 'replenishment' && (
+      {showReminders && !isHistoryMode && (activeTab === 'replenishment' || activeTab === 'processing') && (
         <ReminderModal reminders={effectiveReminders} onDismiss={handleDismissReminder} />
       )}
     </div>
