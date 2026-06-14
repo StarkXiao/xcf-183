@@ -189,19 +189,23 @@ export default function NightPatrol({
     setUploadingPhoto(true);
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!file.type.startsWith('image/')) continue;
+      const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
 
-        const photoData = await processPhotoUpload(file, operatorName, checkpoint.zone);
-        const updated = addPhotoToCheckpoint(activeRecord, checkpointId, {
+      const photoResults = await Promise.all(
+        imageFiles.map(file => processPhotoUpload(file, operatorName, checkpoint.zone))
+      );
+
+      let currentRecord = activeRecord;
+      for (const photoData of photoResults) {
+        currentRecord = addPhotoToCheckpoint(currentRecord, checkpointId, {
           url: photoData.url,
           watermarkText: photoData.watermarkText,
           watermarkLocation: photoData.watermarkLocation,
           uploadedBy: operatorName,
         });
-        onUpdateRecords(records.map(r => (r.id === activeRecord.id ? updated : r)));
       }
+
+      onUpdateRecords(records.map(r => (r.id === activeRecord.id ? currentRecord : r)));
     } catch (error) {
       console.error('Photo upload failed:', error);
       alert('照片上传失败，请重试');
@@ -2025,12 +2029,17 @@ function RectificationModal({
 
     setUploading(true);
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!file.type.startsWith('image/')) continue;
-        const photoData = await processPhotoUpload(file, operatorName, anomaly.checkpointName || anomaly.shelfLocation || '整改现场');
-        setRectificationPhotos(prev => [...prev, photoData.url]);
-      }
+      const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+      const location = anomaly.checkpointName || anomaly.shelfLocation || '整改现场';
+
+      const photoResults = await Promise.all(
+        imageFiles.map(file => processPhotoUpload(file, operatorName, location))
+      );
+
+      setRectificationPhotos(prev => [
+        ...prev,
+        ...photoResults.map(pr => pr.url),
+      ]);
     } catch (error) {
       console.error('Photo upload failed:', error);
       alert('照片上传失败，请重试');
