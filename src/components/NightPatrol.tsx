@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   MapPin,
   Camera,
@@ -51,7 +51,6 @@ import {
   getAnomalySeverityInfo,
   getAnomalyStatusInfo,
   getCheckpointStatusInfo,
-  generateWatermarkText,
   updateCheckpointStatus,
   updateCheckItemResult,
   addPhotoToCheckpoint,
@@ -63,6 +62,7 @@ import {
   createAnomalyRecord,
   getCurrentPatrolProgress,
   getNextPendingCheckpoint,
+  processPhotoUpload,
 } from '../utils/patrolUtils';
 import { formatDate } from '../utils/historyUtils';
 
@@ -109,6 +109,11 @@ export default function NightPatrol({
   const [anomalyFilter, setAnomalyFilter] = useState<AnomalyStatus | 'all'>('all');
   const [anomalyCategoryFilter, setAnomalyCategoryFilter] = useState<AnomalyCategory | 'all'>('all');
   const [anomalyModalCtx, setAnomalyModalCtx] = useState<{ checkpointId?: string; checkpointName?: string }>({});
+  const [showRectificationModal, setShowRectificationModal] = useState<{ anomaly: AnomalyRecord; mode: 'rectify' | 'verify' | 'close' } | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoUploadCtx = useRef<{ checkpointId: string; checkpointName: string } | null>(null);
+  const rectificationPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const selectedDateRecords = useMemo(
     () => records.filter(r => r.date === selectedDate),
@@ -167,16 +172,44 @@ export default function NightPatrol({
     if (!activeRecord) return;
     const checkpoint = activeRecord.checkpoints.find(cp => cp.id === checkpointId);
     if (!checkpoint) return;
-    const randomId = Math.random().toString(36).slice(2, 8);
-    const photoUrl = `https://picsum.photos/seed/patrol-${randomId}/400/300`;
-    const watermarkText = generateWatermarkText(operatorName, checkpoint.zone);
-    const updated = addPhotoToCheckpoint(activeRecord, checkpointId, {
-      url: photoUrl,
-      watermarkText,
-      watermarkLocation: checkpoint.zone,
-      uploadedBy: operatorName,
-    });
-    onUpdateRecords(records.map(r => (r.id === activeRecord.id ? updated : r)));
+    photoUploadCtx.current = { checkpointId, checkpointName: checkpoint.checkpointName };
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !photoUploadCtx.current) return;
+
+    const { checkpointId } = photoUploadCtx.current;
+    if (!activeRecord) return;
+
+    const checkpoint = activeRecord.checkpoints.find(cp => cp.id === checkpointId);
+    if (!checkpoint) return;
+
+    setUploadingPhoto(true);
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) continue;
+
+        const photoData = await processPhotoUpload(file, operatorName, checkpoint.zone);
+        const updated = addPhotoToCheckpoint(activeRecord, checkpointId, {
+          url: photoData.url,
+          watermarkText: photoData.watermarkText,
+          watermarkLocation: photoData.watermarkLocation,
+          uploadedBy: operatorName,
+        });
+        onUpdateRecords(records.map(r => (r.id === activeRecord.id ? updated : r)));
+      }
+    } catch (error) {
+      console.error('Photo upload failed:', error);
+      alert('照片上传失败，请重试');
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      photoUploadCtx.current = null;
+    }
   };
 
   const handleRemovePhoto = (checkpointId: string, photoId: string) => {
@@ -212,11 +245,34 @@ export default function NightPatrol({
     setShowAnomalyModal(false);
   };
 
-  const handleUpdateAnomalyStatus = (anomalyId: string, status: AnomalyStatus) => {
+  const handleUpdateAnomalyStatus = (anomalyId: string, status: AnomalyStatus, extraData?: any) => {
     const updated = anomalies.map(a =>
-      a.id === anomalyId ? updateAnomalyStatus(a, status, operatorName, currentTime) : a
+      a.id === anomalyId ? updateAnomalyStatus(a, status, operatorName, currentTime, extraData) : a
     );
     onUpdateAnomalies(updated);
+  };
+
+  const handleOpenRectification = (anomaly: AnomalyRecord, mode: 'rectify' | 'verify' | 'close') => {
+    setShowRectificationModal({ anomaly, mode });
+  };
+
+  const handleSubmitRectification = (data: {
+    anomalyId: string;
+    status: AnomalyStatus;
+    rectificationPlan?: string;
+    rectificationNotes?: string;
+    rectificationPhotos?: string[];
+    verificationNotes?: string;
+    assignedTo?: string;
+  }) => {
+    handleUpdateAnomalyStatus(data.anomalyId, data.status, {
+      rectificationPlan: data.rectificationPlan,
+      rectificationNotes: data.rectificationNotes,
+      rectificationPhotos: data.rectificationPhotos,
+      verificationNotes: data.verificationNotes,
+      assignedTo: data.assignedTo,
+    });
+    setShowRectificationModal(null);
   };
 
   return (
@@ -314,6 +370,7 @@ export default function NightPatrol({
             setAnomalyModalCtx({ checkpointId: cpId, checkpointName: cpName });
           }}
           onViewPhoto={setShowPhotoViewer}
+          uploadingPhoto={uploadingPhoto}
         />
       )}
 
@@ -337,6 +394,7 @@ export default function NightPatrol({
           setAnomalyCategoryFilter={setAnomalyCategoryFilter}
           onSelectAnomaly={setSelectedAnomalyId}
           onUpdateStatus={handleUpdateAnomalyStatus}
+          onOpenRectification={handleOpenRectification}
           operatorName={operatorName}
         />
       )}
@@ -362,6 +420,35 @@ export default function NightPatrol({
       {showPhotoViewer && (
         <PhotoViewer photo={showPhotoViewer} onClose={() => setShowPhotoViewer(null)} />
       )}
+
+      {showRectificationModal && (
+        <RectificationModal
+          anomaly={showRectificationModal.anomaly}
+          mode={showRectificationModal.mode}
+          operatorName={operatorName}
+          currentTime={currentTime}
+          onClose={() => setShowRectificationModal(null)}
+          onSubmit={handleSubmitRectification}
+          processPhotoUpload={processPhotoUpload}
+          photoInputRef={rectificationPhotoInputRef}
+        />
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+      <input
+        ref={rectificationPhotoInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+      />
     </div>
   );
 }
@@ -381,6 +468,7 @@ function PatrolPanel({
   onRemovePhoto,
   onOpenAnomaly,
   onViewPhoto,
+  uploadingPhoto,
 }: {
   routes: PatrolRoute[];
   activeRecord: PatrolRecord | null;
@@ -396,6 +484,7 @@ function PatrolPanel({
   onRemovePhoto: (checkpointId: string, photoId: string) => void;
   onOpenAnomaly: (checkpointId: string, checkpointName?: string) => void;
   onViewPhoto: (photo: PatrolPhoto) => void;
+  uploadingPhoto?: boolean;
 }) {
   const progress = activeRecord ? getCurrentPatrolProgress(activeRecord) : 0;
   const nextCp = activeRecord ? getNextPendingCheckpoint(activeRecord) : null;
@@ -626,6 +715,7 @@ function PatrolPanel({
               onOpenAnomaly(selectedCheckpointId!, selectedCheckpoint.checkpointName)
             }
             onViewPhoto={onViewPhoto}
+            uploadingPhoto={uploadingPhoto}
           />
         )}
       </div>
@@ -645,6 +735,7 @@ function CheckpointDetail({
   onRemovePhoto,
   onOpenAnomaly,
   onViewPhoto,
+  uploadingPhoto,
 }: {
   checkpoint: PatrolCheckpoint;
   checkpointId: string;
@@ -657,6 +748,7 @@ function CheckpointDetail({
   onRemovePhoto: (photoId: string) => void;
   onOpenAnomaly: () => void;
   onViewPhoto: (photo: PatrolPhoto) => void;
+  uploadingPhoto?: boolean;
 }) {
   const statusInfo = getCheckpointStatusInfo(checkpoint.status);
 
@@ -832,10 +924,11 @@ function CheckpointDetail({
             {isRecordActive && (
               <button
                 onClick={onAddPhoto}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                disabled={uploadingPhoto}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Camera className="w-4 h-4" />
-                拍照上传
+                <Camera className={`w-4 h-4 ${uploadingPhoto ? 'animate-spin' : ''}`} />
+                {uploadingPhoto ? '上传中...' : '拍照上传'}
               </button>
             )}
           </div>
@@ -1053,6 +1146,7 @@ function AnomaliesPanel({
   setAnomalyCategoryFilter,
   onSelectAnomaly,
   onUpdateStatus,
+  onOpenRectification,
   operatorName,
 }: {
   anomalies: AnomalyRecord[];
@@ -1063,7 +1157,8 @@ function AnomaliesPanel({
   anomalyCategoryFilter: AnomalyCategory | 'all';
   setAnomalyCategoryFilter: (cat: AnomalyCategory | 'all') => void;
   onSelectAnomaly: (id: string | null) => void;
-  onUpdateStatus: (id: string, status: AnomalyStatus) => void;
+  onUpdateStatus: (id: string, status: AnomalyStatus, extraData?: any) => void;
+  onOpenRectification: (anomaly: AnomalyRecord, mode: 'rectify' | 'verify' | 'close') => void;
   operatorName: string;
 }) {
   const categoryStats = useMemo(() => {
@@ -1245,6 +1340,7 @@ function AnomaliesPanel({
               anomaly={selectedAnomaly}
               onUpdateStatus={onUpdateStatus}
               operatorName={operatorName}
+              onOpenRectification={onOpenRectification}
             />
           )}
         </div>
@@ -1255,27 +1351,29 @@ function AnomaliesPanel({
 
 function AnomalyDetail({
   anomaly,
-  onUpdateStatus,
+  onUpdateStatus: _onUpdateStatus,
   operatorName: _operatorName,
+  onOpenRectification,
 }: {
   anomaly: AnomalyRecord;
-  onUpdateStatus: (id: string, status: AnomalyStatus) => void;
+  onUpdateStatus: (id: string, status: AnomalyStatus, extraData?: any) => void;
   operatorName: string;
+  onOpenRectification: (anomaly: AnomalyRecord, mode: 'rectify' | 'verify' | 'close') => void;
 }) {
   const catInfo = getAnomalyCategoryInfo(anomaly.category);
   const sevInfo = getAnomalySeverityInfo(anomaly.severity);
   const statusInfo = getAnomalyStatusInfo(anomaly.status);
   const IconComp = CATEGORY_ICONS[catInfo.icon];
 
-  const nextStatuses: { value: AnomalyStatus; label: string; color: string }[] = [];
+  const nextStatuses: { value: AnomalyStatus; label: string; color: string; mode: 'rectify' | 'verify' | 'close' }[] = [];
   if (anomaly.status === 'reported') {
-    nextStatuses.push({ value: 'rectifying', label: '开始整改', color: 'bg-yellow-600' });
+    nextStatuses.push({ value: 'rectifying', label: '开始整改', color: 'bg-yellow-600', mode: 'rectify' });
   }
   if (anomaly.status === 'rectifying') {
-    nextStatuses.push({ value: 'verified', label: '整改完成待核实', color: 'bg-teal-600' });
+    nextStatuses.push({ value: 'verified', label: '整改完成待核实', color: 'bg-teal-600', mode: 'verify' });
   }
   if (anomaly.status === 'verified') {
-    nextStatuses.push({ value: 'closed', label: '关闭异常', color: 'bg-gray-600' });
+    nextStatuses.push({ value: 'closed', label: '关闭异常', color: 'bg-gray-600', mode: 'close' });
   }
 
   return (
@@ -1417,7 +1515,7 @@ function AnomalyDetail({
           {nextStatuses.map(ns => (
             <button
               key={ns.value}
-              onClick={() => onUpdateStatus(anomaly.id, ns.value)}
+              onClick={() => onOpenRectification(anomaly, ns.mode)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 ${ns.color} text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity`}
             >
               <ThumbsUp className="w-4 h-4" />
@@ -1857,6 +1955,365 @@ function PhotoViewer({ photo, onClose }: { photo: PatrolPhoto; onClose: () => vo
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function RectificationModal({
+  anomaly,
+  mode,
+  operatorName,
+  currentTime: _currentTime,
+  onClose,
+  onSubmit,
+  processPhotoUpload,
+  photoInputRef,
+}: {
+  anomaly: AnomalyRecord;
+  mode: 'rectify' | 'verify' | 'close';
+  operatorName: string;
+  currentTime: string;
+  onClose: () => void;
+  onSubmit: (data: {
+    anomalyId: string;
+    status: AnomalyStatus;
+    rectificationPlan?: string;
+    rectificationNotes?: string;
+    rectificationPhotos?: string[];
+    verificationNotes?: string;
+    assignedTo?: string;
+  }) => void;
+  processPhotoUpload: typeof import('../utils/patrolUtils').processPhotoUpload;
+  photoInputRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  const [rectificationPlan, setRectificationPlan] = useState(anomaly.rectificationPlan || '');
+  const [rectificationNotes, setRectificationNotes] = useState(anomaly.rectificationNotes || '');
+  const [verificationNotes, setVerificationNotes] = useState(anomaly.verificationNotes || '');
+  const [rectificationPhotos, setRectificationPhotos] = useState<string[]>(anomaly.rectificationPhotos || []);
+  const [assignedTo, setAssignedTo] = useState(anomaly.assignedTo || operatorName);
+  const [uploading, setUploading] = useState(false);
+
+  const modeConfig = {
+    rectify: {
+      title: '开始整改',
+      subtitle: '请填写整改方案并上传整改凭证照片',
+      status: 'rectifying' as AnomalyStatus,
+      bgColor: 'from-yellow-50 to-orange-50',
+      btnColor: 'bg-yellow-600 hover:bg-yellow-700',
+    },
+    verify: {
+      title: '整改完成待核实',
+      subtitle: '请填写整改说明和整改凭证照片',
+      status: 'verified' as AnomalyStatus,
+      bgColor: 'from-teal-50 to-cyan-50',
+      btnColor: 'bg-teal-600 hover:bg-teal-700',
+    },
+    close: {
+      title: '关闭异常',
+      subtitle: '请填写核实意见后关闭异常',
+      status: 'closed' as AnomalyStatus,
+      bgColor: 'from-gray-50 to-slate-50',
+      btnColor: 'bg-gray-600 hover:bg-gray-700',
+    },
+  };
+
+  const config = modeConfig[mode];
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) continue;
+        const photoData = await processPhotoUpload(file, operatorName, anomaly.checkpointName || anomaly.shelfLocation || '整改现场');
+        setRectificationPhotos(prev => [...prev, photoData.url]);
+      }
+    } catch (error) {
+      console.error('Photo upload failed:', error);
+      alert('照片上传失败，请重试');
+    } finally {
+      setUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setRectificationPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = () => {
+    if (mode === 'rectify' && !rectificationPlan.trim()) {
+      alert('请填写整改方案');
+      return;
+    }
+    if (mode === 'verify' && !rectificationNotes.trim()) {
+      alert('请填写整改说明');
+      return;
+    }
+    if (mode === 'close' && !verificationNotes.trim()) {
+      alert('请填写核实意见');
+      return;
+    }
+
+    onSubmit({
+      anomalyId: anomaly.id,
+      status: config.status,
+      rectificationPlan: mode === 'rectify' ? rectificationPlan.trim() : undefined,
+      rectificationNotes: mode === 'verify' ? rectificationNotes.trim() : undefined,
+      rectificationPhotos: mode !== 'close' && rectificationPhotos.length > 0 ? rectificationPhotos : undefined,
+      verificationNotes: mode === 'close' ? verificationNotes.trim() : undefined,
+      assignedTo: mode === 'rectify' ? assignedTo.trim() : undefined,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className={`px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r ${config.bgColor}`}>
+          <div>
+            <h3 className="font-semibold text-gray-800">{config.title}</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{config.subtitle}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-white/50 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5 overflow-y-auto flex-1">
+          <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-blue-900">{anomaly.title}</p>
+                <p className="text-xs text-blue-700 mt-1">{anomaly.description}</p>
+                {anomaly.checkpointName && (
+                  <p className="text-xs text-blue-600 mt-1">📍 {anomaly.checkpointName} {anomaly.shelfLocation && `· ${anomaly.shelfLocation}`}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {mode === 'rectify' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  责任人 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={assignedTo}
+                  onChange={e => setAssignedTo(e.target.value)}
+                  placeholder="请输入整改责任人姓名"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  整改方案 <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={rectificationPlan}
+                  onChange={e => setRectificationPlan(e.target.value)}
+                  placeholder="请详细描述整改方案、整改措施和预期完成时间..."
+                  rows={4}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  整改凭证照片（可选）
+                </label>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-4">
+                  {rectificationPhotos.length === 0 ? (
+                    <div className="text-center py-4">
+                      <ImageIcon className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm text-gray-400 mb-3">暂无整改凭证照片</p>
+                      <button
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={uploading}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50"
+                      >
+                        <Camera className={`w-4 h-4 ${uploading ? 'animate-spin' : ''}`} />
+                        {uploading ? '上传中...' : '上传整改凭证'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        {rectificationPhotos.map((url, idx) => (
+                          <div key={idx} className="relative rounded-xl overflow-hidden border border-gray-200 aspect-[4/3]">
+                            <img src={url} alt={`整改凭证${idx + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => handleRemovePhoto(idx)}
+                              className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={uploading}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        <Plus className="w-4 h-4" />
+                        {uploading ? '上传中...' : '继续添加'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {mode === 'verify' && (
+            <>
+              {anomaly.rectificationPlan && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">原整改方案</label>
+                  <p className="text-sm text-gray-700 p-3 bg-yellow-50 rounded-xl border border-yellow-100">
+                    {anomaly.rectificationPlan}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  整改说明 <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={rectificationNotes}
+                  onChange={e => setRectificationNotes(e.target.value)}
+                  placeholder="请详细描述整改完成情况、整改效果..."
+                  rows={4}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  整改后照片（可选）
+                </label>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-4">
+                  {rectificationPhotos.length === 0 ? (
+                    <div className="text-center py-4">
+                      <ImageIcon className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm text-gray-400 mb-3">暂无整改后照片</p>
+                      <button
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={uploading}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors disabled:opacity-50"
+                      >
+                        <Camera className={`w-4 h-4 ${uploading ? 'animate-spin' : ''}`} />
+                        {uploading ? '上传中...' : '上传整改后照片'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        {rectificationPhotos.map((url, idx) => (
+                          <div key={idx} className="relative rounded-xl overflow-hidden border border-gray-200 aspect-[4/3]">
+                            <img src={url} alt={`整改后照片${idx + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => handleRemovePhoto(idx)}
+                              className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={uploading}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        <Plus className="w-4 h-4" />
+                        {uploading ? '上传中...' : '继续添加'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {mode === 'close' && (
+            <>
+              {anomaly.rectificationPlan && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">整改方案</label>
+                  <p className="text-sm text-gray-700 p-3 bg-yellow-50 rounded-xl border border-yellow-100">
+                    {anomaly.rectificationPlan}
+                  </p>
+                </div>
+              )}
+              {anomaly.rectificationNotes && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">整改说明</label>
+                  <p className="text-sm text-gray-700 p-3 bg-green-50 rounded-xl border border-green-100">
+                    {anomaly.rectificationNotes}
+                  </p>
+                </div>
+              )}
+              {anomaly.rectificationPhotos && anomaly.rectificationPhotos.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">整改凭证照片</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {anomaly.rectificationPhotos.map((url, idx) => (
+                      <div key={idx} className="rounded-xl overflow-hidden border border-gray-200 aspect-[4/3]">
+                        <img src={url} alt={`整改凭证${idx + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  核实意见 <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={verificationNotes}
+                  onChange={e => setVerificationNotes(e.target.value)}
+                  placeholder="请填写核实意见，确认整改是否到位..."
+                  rows={4}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-gray-500 resize-none"
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-white transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSubmit}
+            className={`flex-1 py-2.5 text-white rounded-xl text-sm font-medium transition-colors ${config.btnColor}`}
+          >
+            {mode === 'rectify' ? '确认开始整改' : mode === 'verify' ? '提交整改完成' : '确认关闭异常'}
+          </button>
+        </div>
+      </div>
+
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handlePhotoUpload}
+      />
     </div>
   );
 }

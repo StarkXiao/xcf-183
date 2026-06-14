@@ -68,6 +68,88 @@ export const generateWatermarkTime = (): string => {
   return `${formatDate(now)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 };
 
+export const generateWatermarkedImage = (
+  file: File,
+  watermarkText: string,
+  location: string
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas not supported'));
+          return;
+        }
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        ctx.drawImage(img, 0, 0);
+
+        const watermarkTime = generateWatermarkTime();
+        const fontSize = Math.max(14, Math.floor(Math.min(img.width, img.height) * 0.025));
+        const padding = fontSize * 0.8;
+        const lineHeight = fontSize * 1.4;
+
+        ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+        ctx.textAlign = 'left';
+
+        const gradient = ctx.createLinearGradient(0, img.height - lineHeight * 3 - padding * 2, 0, img.height);
+        gradient.addColorStop(0, 'rgba(0,0,0,0)');
+        gradient.addColorStop(0.3, 'rgba(0,0,0,0.75)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0.85)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, img.height - lineHeight * 3 - padding * 2, img.width, lineHeight * 3 + padding * 2);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.fillText(watermarkText, padding, img.height - lineHeight * 2 - padding * 0.5);
+
+        ctx.font = `${fontSize * 0.85}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillText(`📍 ${location}`, padding, img.height - lineHeight - padding * 0.5);
+
+        ctx.font = `${fontSize * 0.75}px monospace`;
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillText(watermarkTime, padding, img.height - padding * 0.5);
+
+        const logoSize = fontSize * 2;
+        ctx.beginPath();
+        ctx.arc(img.width - padding - logoSize / 2, img.height - padding - logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(99, 102, 241, 0.9)';
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.font = `bold ${fontSize * 0.6}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('夜巡', img.width - padding - logoSize / 2, img.height - padding - logoSize / 2 + fontSize * 0.2);
+
+        resolve(canvas.toDataURL('image/jpeg', 0.92));
+      };
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('File read failed'));
+    reader.readAsDataURL(file);
+  });
+};
+
+export const processPhotoUpload = async (
+  file: File,
+  operatorName: string,
+  location: string
+): Promise<{ url: string; watermarkText: string; watermarkLocation: string }> => {
+  const watermarkText = generateWatermarkText(operatorName, location);
+  const url = await generateWatermarkedImage(file, watermarkText, location);
+  return {
+    url,
+    watermarkText,
+    watermarkLocation: location,
+  };
+};
+
 export const updateCheckpointStatus = (
   record: PatrolRecord,
   checkpointId: string,
@@ -299,16 +381,24 @@ export const updateAnomalyStatus = (
   anomaly: AnomalyRecord,
   status: AnomalyStatus,
   operatorName: string,
-  currentTime: string
+  currentTime: string,
+  extraData?: {
+    rectificationPlan?: string;
+    rectificationNotes?: string;
+    rectificationPhotos?: string[];
+    verificationNotes?: string;
+    assignedTo?: string;
+  }
 ): AnomalyRecord => {
-  const updates: Partial<AnomalyRecord> = { status };
-  if (status === 'rectifying' && !anomaly.assignedAt) {
+  const updates: Partial<AnomalyRecord> = { status, ...extraData };
+  if (status === 'rectifying') {
     updates.assignedAt = currentTime;
-    updates.assignedTo = operatorName;
+    updates.assignedTo = extraData?.assignedTo || operatorName;
   }
   if (status === 'verified' && !anomaly.verifiedAt) {
     updates.verifiedAt = currentTime;
     updates.verifiedBy = operatorName;
+    updates.rectifiedAt = currentTime;
   }
   if (status === 'closed' && !anomaly.closedAt) {
     updates.closedAt = currentTime;
