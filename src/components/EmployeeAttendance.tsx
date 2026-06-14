@@ -34,6 +34,7 @@ import {
   formatMinutesToHours,
   createCheckInRecord,
   createCheckOutRecord,
+  computeEffectiveRecords,
   calculateWorkHoursStats,
   calculateDailyAttendanceSummary,
   exportAttendanceToCSV,
@@ -110,14 +111,19 @@ export default function EmployeeAttendance({
     [attendanceRecords, selectedDate]
   );
 
+  const effectiveRecords = useMemo(
+    () => computeEffectiveRecords(assignments, attendanceRecords, employees),
+    [assignments, attendanceRecords, employees]
+  );
+
   const dailySummary = useMemo(
-    () => calculateDailyAttendanceSummary(assignments, attendanceRecords, selectedDate),
-    [assignments, attendanceRecords, selectedDate]
+    () => calculateDailyAttendanceSummary(assignments, effectiveRecords, selectedDate),
+    [assignments, effectiveRecords, selectedDate]
   );
 
   const workHoursStats = useMemo(
-    () => calculateWorkHoursStats(attendanceRecords, employees),
-    [attendanceRecords, employees]
+    () => calculateWorkHoursStats(effectiveRecords, employees),
+    [effectiveRecords, employees]
   );
 
   const handleCheckIn = (assignment: ShiftAssignment) => {
@@ -141,12 +147,15 @@ export default function EmployeeAttendance({
   };
 
   const handleExportCSV = () => {
-    const csv = exportAttendanceToCSV(attendanceRecords, employees, shifts, assignments);
+    const csv = exportAttendanceToCSV(effectiveRecords, employees, shifts, assignments, areas);
     downloadCSV(csv, `考勤记录_${formatDate(new Date())}.csv`);
   };
 
-  const getRecordForAssignment = (assignmentId: string) =>
-    todayRecords.find(r => r.assignmentId === assignmentId);
+  const getRecordForAssignment = (assignmentId: string) => {
+    const realRecord = todayRecords.find(r => r.assignmentId === assignmentId);
+    if (realRecord) return realRecord;
+    return effectiveRecords.find(r => r.assignmentId === assignmentId && r.date === selectedDate);
+  };
 
   return (
     <div className="space-y-6">
@@ -413,7 +422,7 @@ function AttendancePanel({
                       )}
 
                       <div className="flex gap-2">
-                        {!record && (
+                        {(!record || record.status === 'absent' || record.status === 'on_leave') && (
                           <button
                             onClick={() => onCheckIn(assignment)}
                             className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
@@ -422,7 +431,7 @@ function AttendancePanel({
                             签到
                           </button>
                         )}
-                        {record && !record.checkOutTime && (
+                        {record && record.checkInTime && !record.checkOutTime && (
                           <button
                             onClick={() => onCheckOut(assignment)}
                             className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"

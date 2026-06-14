@@ -4,6 +4,7 @@ import type {
   AttendanceRecord,
   AttendanceStatus,
   Employee,
+  WorkArea,
   WorkHoursStats,
   DailyAttendanceSummary,
 } from '../types';
@@ -180,6 +181,40 @@ export const calculateWorkHoursStats = (
   });
 };
 
+export const computeEffectiveRecords = (
+  assignments: ShiftAssignment[],
+  records: AttendanceRecord[],
+  employees: Employee[]
+): AttendanceRecord[] => {
+  const employeeMap = new Map(employees.map(e => [e.id, e]));
+  const recordByAssignment = new Map(records.map(r => [r.assignmentId, r]));
+
+  const absentRecords: AttendanceRecord[] = [];
+
+  for (const assignment of assignments) {
+    if (recordByAssignment.has(assignment.id)) continue;
+
+    const employee = employeeMap.get(assignment.employeeId);
+    const isOnLeave = employee?.status === 'leave';
+
+    absentRecords.push({
+      id: `absent-${assignment.id}`,
+      employeeId: assignment.employeeId,
+      assignmentId: assignment.id,
+      date: assignment.date,
+      checkInTime: undefined,
+      checkOutTime: undefined,
+      status: isOnLeave ? 'on_leave' : 'absent',
+      actualWorkMinutes: 0,
+      lateMinutes: 0,
+      earlyLeaveMinutes: 0,
+      notes: isOnLeave ? '请假' : '未签到，自动记为缺勤',
+    });
+  }
+
+  return [...records, ...absentRecords];
+};
+
 export const calculateDailyAttendanceSummary = (
   assignments: ShiftAssignment[],
   records: AttendanceRecord[],
@@ -209,12 +244,14 @@ export const exportAttendanceToCSV = (
   records: AttendanceRecord[],
   employees: Employee[],
   shifts: ShiftConfig[],
-  assignments: ShiftAssignment[]
+  assignments: ShiftAssignment[],
+  areas: WorkArea[]
 ): string => {
   const headers = ['日期', '员工姓名', '职位', '班次', '工作区域', '签到时间', '签退时间', '状态', '工时(小时)', '迟到(分钟)', '早退(分钟)', '备注'];
   const employeeMap = new Map(employees.map(e => [e.id, e]));
   const shiftMap = new Map(shifts.map(s => [s.id, s]));
   const assignmentMap = new Map(assignments.map(a => [a.id, a]));
+  const areaMap = new Map(areas.map(a => [a.id, a]));
 
   const statusLabels: Record<AttendanceStatus, string> = {
     checked_in: '已签到',
@@ -229,13 +266,14 @@ export const exportAttendanceToCSV = (
     const employee = employeeMap.get(record.employeeId);
     const assignment = assignmentMap.get(record.assignmentId);
     const shift = assignment ? shiftMap.get(assignment.shiftId) : undefined;
+    const area = assignment ? areaMap.get(assignment.areaId) : undefined;
 
     return [
       record.date,
       employee?.name || '未知',
       employee?.position || '未知',
       shift?.name || '未知',
-      assignment?.areaId || '未知',
+      area?.name || '未知',
       record.checkInTime || '-',
       record.checkOutTime || '-',
       statusLabels[record.status],
