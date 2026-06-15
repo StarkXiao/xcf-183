@@ -224,11 +224,31 @@ export const addRepairLogEntry = (
     operator,
     notes,
   };
-  return {
+
+  const updatedRepair: RepairRequest = {
     ...repair,
     status,
     logs: [...repair.logs, newLog],
   };
+
+  switch (status) {
+    case 'assigned':
+      updatedRepair.assignedAt = timeStr;
+      break;
+    case 'in_progress':
+      if (!repair.actualStartTime) {
+        updatedRepair.actualStartTime = timeStr;
+      }
+      break;
+    case 'completed':
+      updatedRepair.completedAt = timeStr;
+      if (notes) {
+        updatedRepair.resolutionNotes = notes;
+      }
+      break;
+  }
+
+  return updatedRepair;
 };
 
 export const acknowledgeAlert = (

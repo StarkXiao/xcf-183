@@ -323,7 +323,7 @@ const AlertItem = ({
 }: {
   alert: TemperatureAlert;
   onAcknowledge: () => void;
-  onResolve: () => void;
+  onResolve: (notes: string) => void;
 }) => {
   const [showResolve, setShowResolve] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
@@ -332,7 +332,7 @@ const AlertItem = ({
 
   const handleResolve = () => {
     if (resolutionNotes.trim()) {
-      onResolve();
+      onResolve(resolutionNotes.trim());
       setShowResolve(false);
       setResolutionNotes('');
     }
@@ -559,6 +559,24 @@ const RepairCard = ({
                   <Calendar className="w-3.5 h-3.5" />
                   {repair.reportedAt}
                 </span>
+                {repair.assignedAt && (
+                  <span className="flex items-center gap-1 text-blue-600">
+                    <Clock className="w-3.5 h-3.5" />
+                    派单时间: {repair.assignedAt}
+                  </span>
+                )}
+                {repair.actualStartTime && (
+                  <span className="flex items-center gap-1 text-orange-600">
+                    <Wrench className="w-3.5 h-3.5" />
+                    开始维修: {repair.actualStartTime}
+                  </span>
+                )}
+                {repair.completedAt && (
+                  <span className="flex items-center gap-1 text-green-600">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    完成时间: {repair.completedAt}
+                  </span>
+                )}
                 {repair.assignedTo && (
                   <span className="flex items-center gap-1">
                     <Wrench className="w-3.5 h-3.5" />
@@ -1112,7 +1130,7 @@ export default function EquipmentMonitor({
                     key={alert.id}
                     alert={alert}
                     onAcknowledge={() => handleAcknowledgeAlert(alert.id)}
-                    onResolve={() => handleResolveAlert(alert.id, '温度恢复正常')}
+                    onResolve={(notes) => handleResolveAlert(alert.id, notes)}
                   />
                 ))}
               </div>
@@ -1195,7 +1213,7 @@ export default function EquipmentMonitor({
                   key={alert.id}
                   alert={alert}
                   onAcknowledge={() => handleAcknowledgeAlert(alert.id)}
-                  onResolve={() => handleResolveAlert(alert.id, '温度恢复正常')}
+                  onResolve={(notes) => handleResolveAlert(alert.id, notes)}
                 />
               ))}
             </div>
