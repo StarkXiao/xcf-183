@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2, ClipboardList, Zap, Route as RouteIcon } from 'lucide-react';
+import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2, ClipboardList, Zap, Route as RouteIcon, Cpu } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
 import StockCalculator from './components/StockCalculator';
@@ -18,8 +18,9 @@ import ScrapManagement from './components/ScrapManagement';
 import ShiftHandoverLogComponent from './components/ShiftHandoverLog';
 import ReplenishmentForecast from './components/ReplenishmentForecast';
 import NightPatrol from './components/NightPatrol';
-import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog, PatrolRoute, PatrolRecord, AnomalyRecord } from './types';
-import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems, mockHandoverLogs, mockPatrolRoutes, mockPatrolRecords, mockAnomalyRecords } from './data/mockData';
+import EquipmentMonitor from './components/EquipmentMonitor';
+import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog, PatrolRoute, PatrolRecord, AnomalyRecord, Equipment, TemperatureAlert, RepairRequest } from './types';
+import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems, mockHandoverLogs, mockPatrolRoutes, mockPatrolRecords, mockAnomalyRecords, mockEquipment, mockTemperatureAlerts, mockRepairRequests } from './data/mockData';
 import {
   getCurrentTime,
   checkOverdueTasks,
@@ -67,7 +68,10 @@ export default function App() {
     return [...mockHistoricalSnapshots, ...newOnes];
   });
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'replenishment' | 'forecast' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap' | 'handover' | 'patrol'>('replenishment');
+  const [activeTab, setActiveTab] = useState<'replenishment' | 'forecast' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap' | 'handover' | 'patrol' | 'equipment'>('replenishment');
+  const [equipment] = useState<Equipment[]>(mockEquipment);
+  const [temperatureAlerts, setTemperatureAlerts] = useState<TemperatureAlert[]>(mockTemperatureAlerts);
+  const [repairRequests, setRepairRequests] = useState<RepairRequest[]>(mockRepairRequests);
   const [patrolRoutes] = useState<PatrolRoute[]>(mockPatrolRoutes);
   const [patrolRecords, setPatrolRecords] = useState<PatrolRecord[]>(mockPatrolRecords);
   const [anomalyRecords, setAnomalyRecords] = useState<AnomalyRecord[]>(mockAnomalyRecords);
@@ -400,6 +404,26 @@ export default function App() {
     }));
   };
 
+  const handleAddRepairRequest = (repair: Omit<RepairRequest, 'id' | 'logs' | 'reportedAt'>) => {
+    const now = getCurrentTime();
+    const newRepair: RepairRequest = {
+      ...repair,
+      id: `repair-${Date.now()}`,
+      reportedAt: now,
+      logs: [
+        {
+          id: `log-new-${Date.now()}`,
+          repairId: `repair-${Date.now()}`,
+          timestamp: now,
+          status: 'pending',
+          operator: repair.reportedBy,
+          notes: '提交报修申请',
+        },
+      ],
+    };
+    setRepairRequests(prev => [...prev, newRepair]);
+  };
+
   const handleAdvanceProcessingTask = (taskId: string) => {
     if (isHistoryMode) return;
     setProcessingTasks(prev => {
@@ -593,6 +617,20 @@ export default function App() {
                   <RouteIcon className="w-4 h-4" />
                   巡店打卡
                 </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('equipment');
+                    setSelectedHistoryDate(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                    activeTab === 'equipment'
+                      ? 'bg-white text-cyan-600 shadow-sm font-medium'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Cpu className="w-4 h-4" />
+                  设备监控
+                </button>
               </div>
               {activeTab === 'replenishment' && (
                 <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
@@ -709,6 +747,17 @@ export default function App() {
             operatorName="张夜班"
             onUpdateRecords={setPatrolRecords}
             onUpdateAnomalies={setAnomalyRecords}
+          />
+        ) : activeTab === 'equipment' ? (
+          <EquipmentMonitor
+            equipment={equipment}
+            alerts={temperatureAlerts}
+            repairs={repairRequests}
+            currentTime={currentTime}
+            operatorName="张夜班"
+            onUpdateAlerts={setTemperatureAlerts}
+            onUpdateRepairs={setRepairRequests}
+            onAddRepair={handleAddRepairRequest}
           />
         ) : isHistoryMode ? (
           <div className="space-y-6">

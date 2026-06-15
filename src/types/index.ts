@@ -806,3 +806,142 @@ export interface PatrolStatistics {
   }[];
 }
 
+export type EquipmentType = 'freezer' | 'refrigerator' | 'display_case' | 'ice_maker' | 'air_conditioner' | 'other';
+export type EquipmentStatus = 'normal' | 'warning' | 'critical' | 'maintenance' | 'offline';
+export type TemperatureAlertLevel = 'normal' | 'warning' | 'critical';
+export type RepairStatus = 'pending' | 'assigned' | 'in_progress' | 'parts_ordered' | 'completed' | 'cancelled';
+export type RepairPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface TemperatureReading {
+  id: string;
+  equipmentId: string;
+  temperature: number;
+  recordedAt: string;
+  alertLevel: TemperatureAlertLevel;
+}
+
+export interface Equipment {
+  id: string;
+  name: string;
+  type: EquipmentType;
+  location: string;
+  status: EquipmentStatus;
+  currentTemperature?: number;
+  targetTemperatureMin: number;
+  targetTemperatureMax: number;
+  warningThresholdMin: number;
+  warningThresholdMax: number;
+  criticalThresholdMin: number;
+  criticalThresholdMax: number;
+  lastMaintenanceDate?: string;
+  nextMaintenanceDate?: string;
+  installedDate: string;
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  temperatureHistory: TemperatureReading[];
+  isOnline: boolean;
+  lastUpdateTime: string;
+  powerConsumption?: number;
+}
+
+export interface TemperatureAlert {
+  id: string;
+  equipmentId: string;
+  equipmentName: string;
+  location: string;
+  alertLevel: TemperatureAlertLevel;
+  currentTemperature: number;
+  targetMin: number;
+  targetMax: number;
+  triggeredAt: string;
+  acknowledged: boolean;
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+  resolved: boolean;
+  resolvedAt?: string;
+  resolutionNotes?: string;
+  durationMinutes?: number;
+}
+
+export interface RepairLogEntry {
+  id: string;
+  repairId: string;
+  timestamp: string;
+  status: RepairStatus;
+  operator: string;
+  notes?: string;
+}
+
+export interface RepairRequest {
+  id: string;
+  equipmentId: string;
+  equipmentName: string;
+  equipmentType: EquipmentType;
+  location: string;
+  reportedBy: string;
+  reportedAt: string;
+  issueDescription: string;
+  priority: RepairPriority;
+  status: RepairStatus;
+  assignedTo?: string;
+  assignedAt?: string;
+  estimatedCompletionTime?: string;
+  actualStartTime?: string;
+  completedAt?: string;
+  cost?: number;
+  partsUsed?: {
+    partId: string;
+    partName: string;
+    quantity: number;
+    unitPrice: number;
+  }[];
+  technicianNotes?: string;
+  resolutionNotes?: string;
+  photos: string[];
+  logs: RepairLogEntry[];
+}
+
+export interface EquipmentStatistics {
+  totalEquipment: number;
+  onlineCount: number;
+  offlineCount: number;
+  normalCount: number;
+  warningCount: number;
+  criticalCount: number;
+  maintenanceCount: number;
+  activeAlerts: number;
+  pendingRepairs: number;
+  inProgressRepairs: number;
+  completedRepairsToday: number;
+  averageRepairDurationMinutes: number;
+  byType: {
+    type: EquipmentType;
+    label: string;
+    count: number;
+    normal: number;
+    warning: number;
+    critical: number;
+  }[];
+  temperatureComplianceRate: number;
+}
+
+export interface EquipmentTypeOption {
+  value: EquipmentType;
+  label: string;
+  icon: string;
+  color: string;
+}
+
+export interface RepairStatusOption {
+  value: RepairStatus;
+  label: string;
+  color: string;
+}
+
+export interface RepairPriorityOption {
+  value: RepairPriority;
+  label: string;
+  color: string;
+}
+
