@@ -21,6 +21,8 @@ import NightPatrol from './components/NightPatrol';
 import EquipmentMonitor from './components/EquipmentMonitor';
 import type { Product, ScheduleItem, Reminder, Statistics, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog, PatrolRoute, PatrolRecord, AnomalyRecord, Equipment, TemperatureAlert, RepairRequest } from './types';
 import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems, mockHandoverLogs, mockPatrolRoutes, mockPatrolRecords, mockAnomalyRecords, mockEquipment, mockTemperatureAlerts, mockRepairRequests } from './data/mockData';
+import { config, isDevelopment, isProduction } from './config';
+import { createModuleLogger } from './utils/logger';
 import {
   getCurrentTime,
   checkOverdueTasks,
@@ -56,7 +58,20 @@ import {
 import { generateShelfHeatmapData } from './utils/shelfHeatmapUtils';
 import { generateForecast } from './utils/forecastUtils';
 
+const logger = createModuleLogger('App');
+
 export default function App() {
+  useEffect(() => {
+    logger.info('应用启动');
+    logger.debug('环境配置:', {
+      env: config.env,
+      useMock: config.useMock,
+      logLevel: config.logLevel,
+      apiBaseUrl: config.apiBaseUrl,
+    });
+    logger.info(`当前环境: ${config.env} | Mock: ${config.useMock ? '开启' : '关闭'} | 日志级别: ${config.logLevel}`);
+  }, []);
+
   const { products, setProducts, selectedProduct, setSelectedProduct, selectedCategory, setSelectedCategory, searchTerm, setSearchTerm } = useProductDomain(mockProducts);
   const { schedule, setSchedule, currentTime, setCurrentTime } = useScheduleDomain(mockSchedule);
   const { reminders, setReminders, showReminders, setShowReminders } = useReminderDomain(() => generateExpiryReminders(mockProducts, mockReminders));
@@ -836,9 +851,30 @@ export default function App() {
 
       <footer className="bg-white border-t border-gray-100 mt-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-sm text-gray-500">
-            © 2026 夜班便利店补货排程器 | 为夜班员工提供高效补货管理
-          </p>
+          <div className="flex items-center justify-center gap-4">
+            <p className="text-sm text-gray-500">
+              © 2026 夜班便利店补货排程器 | 为夜班员工提供高效补货管理
+            </p>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                isDevelopment()
+                  ? 'bg-green-100 text-green-700'
+                  : isProduction()
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-yellow-100 text-yellow-700'
+              }`}>
+                {config.env}
+              </span>
+              {config.useMock && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                  Mock
+                </span>
+              )}
+              <span className="text-xs text-gray-400">
+                v{config.appVersion}
+              </span>
+            </div>
+          </div>
         </div>
       </footer>
 

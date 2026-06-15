@@ -945,3 +945,17 @@ export interface RepairPriorityOption {
   color: string;
 }
 
+export type AppEnv = 'development' | 'production' | 'test';
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
+
+export interface AppConfig {
+  env: AppEnv;
+  apiBaseUrl: string;
+  useMock: boolean;
+  logLevel: LogLevel;
+  mockDelay: number;
+  appTitle: string;
+  appVersion: string;
+}
+

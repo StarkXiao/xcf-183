@@ -4,10 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "vite --mode development",
+    "dev:prod": "vite --mode production",
+    "build": "tsc -b && vite build --mode production",
+    "build:dev": "tsc -b && vite build --mode development",
+    "preview": "vite preview",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "mock": "vite --mode development",
+    "nomock": "VITE_USE_MOCK=false vite --mode development"
   },
   "dependencies": {
     "lucide-react": "^1.18.0",
