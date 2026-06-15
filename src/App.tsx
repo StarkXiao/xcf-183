@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2, ClipboardList, Zap, Route as RouteIcon, Cpu } from 'lucide-react';
+import { Store, Bell, BellOff, Clock, ListTodo, Receipt, Truck, ChefHat, Flame, Users, Trash2, ClipboardList, Zap, Route as RouteIcon, Cpu, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import ProductPanel from './components/ProductPanel';
 import ScheduleTimeline from './components/ScheduleTimeline';
 import StockCalculator from './components/StockCalculator';
@@ -20,9 +20,9 @@ import ReplenishmentForecast from './components/ReplenishmentForecast';
 import NightPatrol from './components/NightPatrol';
 import EquipmentMonitor from './components/EquipmentMonitor';
 import type { Product, ScheduleItem, Reminder, Statistics, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog, PatrolRoute, PatrolRecord, AnomalyRecord, Equipment, TemperatureAlert, RepairRequest } from './types';
-import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems, mockHandoverLogs, mockPatrolRoutes, mockPatrolRecords, mockAnomalyRecords, mockEquipment, mockTemperatureAlerts, mockRepairRequests } from './data/mockData';
 import { config, isDevelopment, isProduction } from './config';
 import { createModuleLogger } from './utils/logger';
+import { useAppData } from './hooks/useAppData';
 import {
   getCurrentTime,
   checkOverdueTasks,
@@ -61,6 +61,34 @@ import { generateForecast } from './utils/forecastUtils';
 const logger = createModuleLogger('App');
 
 export default function App() {
+  const {
+    products: apiProducts,
+    schedule: apiSchedule,
+    reminders: apiReminders,
+    snapshots: apiSnapshots,
+    shiftRevenues: apiShiftRevenues,
+    suppliers: apiSuppliers,
+    deliveries: apiDeliveries,
+    processingTasks: apiProcessingTasks,
+    processingStations: apiProcessingStations,
+    employees: apiEmployees,
+    shiftConfigs: apiShiftConfigs,
+    workAreas: apiWorkAreas,
+    shiftAssignments: apiShiftAssignments,
+    attendanceRecords: apiAttendanceRecords,
+    scrapItems: apiScrapItems,
+    handoverLogs: apiHandoverLogs,
+    patrolRoutes: apiPatrolRoutes,
+    patrolRecords: apiPatrolRecords,
+    anomalyRecords: apiAnomalyRecords,
+    equipment: apiEquipment,
+    temperatureAlerts: apiTemperatureAlerts,
+    repairRequests: apiRepairRequests,
+    loading,
+    error,
+    reloadAll,
+  } = useAppData(true);
+
   useEffect(() => {
     logger.info('应用启动');
     logger.debug('环境配置:', {
@@ -72,31 +100,166 @@ export default function App() {
     logger.info(`当前环境: ${config.env} | Mock: ${config.useMock ? '开启' : '关闭'} | 日志级别: ${config.logLevel}`);
   }, []);
 
-  const { products, setProducts, selectedProduct, setSelectedProduct, selectedCategory, setSelectedCategory, searchTerm, setSearchTerm } = useProductDomain(mockProducts);
-  const { schedule, setSchedule, currentTime, setCurrentTime } = useScheduleDomain(mockSchedule);
-  const { reminders, setReminders, showReminders, setShowReminders } = useReminderDomain(() => generateExpiryReminders(mockProducts, mockReminders));
-  const { snapshots, setSnapshots, selectedHistoryDate, setSelectedHistoryDate, selectedSnapshot, isHistoryMode } = useHistoryDomain(mockHistoricalSnapshots);
+  const { products, setProducts, selectedProduct, setSelectedProduct, selectedCategory, setSelectedCategory, searchTerm, setSearchTerm } = useProductDomain([]);
+  const { schedule, setSchedule, currentTime, setCurrentTime } = useScheduleDomain([]);
+  const { reminders, setReminders, showReminders, setShowReminders } = useReminderDomain([]);
+  const { snapshots, setSnapshots, selectedHistoryDate, setSelectedHistoryDate, selectedSnapshot, isHistoryMode } = useHistoryDomain([]);
   const [activeTab, setActiveTab] = useState<'replenishment' | 'forecast' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap' | 'handover' | 'patrol' | 'equipment'>('replenishment');
-  const [equipment] = useState<Equipment[]>(mockEquipment);
-  const [temperatureAlerts, setTemperatureAlerts] = useState<TemperatureAlert[]>(mockTemperatureAlerts);
-  const [repairRequests, setRepairRequests] = useState<RepairRequest[]>(mockRepairRequests);
-  const [patrolRoutes] = useState<PatrolRoute[]>(mockPatrolRoutes);
-  const [patrolRecords, setPatrolRecords] = useState<PatrolRecord[]>(mockPatrolRecords);
-  const [anomalyRecords, setAnomalyRecords] = useState<AnomalyRecord[]>(mockAnomalyRecords);
-  const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>(mockShiftRevenues);
-  const [deliveries, setDeliveries] = useState<DeliveryAppointment[]>(mockDeliveries);
-  const [suppliers] = useState<Supplier[]>(mockSuppliers);
-  const [processingTasks, setProcessingTasks] = useState<ProcessingTask[]>(() => 
-    sortProcessingTasks(checkProcessingOverdue(mockProcessingTasks, getCurrentTime()), getCurrentTime())
-  );
-  const [processingStations] = useState<ProcessingStation[]>(mockProcessingStations);
-  const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
-  const [shiftConfigs, setShiftConfigs] = useState<ShiftConfig[]>(mockShiftConfigs);
-  const [workAreas] = useState<WorkArea[]>(mockWorkAreas);
-  const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>(mockShiftAssignments);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(mockAttendanceRecords);
-  const [scrapItems, setScrapItems] = useState<ScrapItem[]>(mockScrapItems);
-  const [handoverLogs, setHandoverLogs] = useState<ShiftHandoverLog[]>(mockHandoverLogs);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [temperatureAlerts, setTemperatureAlerts] = useState<TemperatureAlert[]>([]);
+  const [repairRequests, setRepairRequests] = useState<RepairRequest[]>([]);
+  const [patrolRoutes, setPatrolRoutes] = useState<PatrolRoute[]>([]);
+  const [patrolRecords, setPatrolRecords] = useState<PatrolRecord[]>([]);
+  const [anomalyRecords, setAnomalyRecords] = useState<AnomalyRecord[]>([]);
+  const [shiftRevenues, setShiftRevenues] = useState<ShiftRevenue[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryAppointment[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [processingTasks, setProcessingTasks] = useState<ProcessingTask[]>([]);
+  const [processingStations, setProcessingStations] = useState<ProcessingStation[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [shiftConfigs, setShiftConfigs] = useState<ShiftConfig[]>([]);
+  const [workAreas, setWorkAreas] = useState<WorkArea[]>([]);
+  const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [scrapItems, setScrapItems] = useState<ScrapItem[]>([]);
+  const [handoverLogs, setHandoverLogs] = useState<ShiftHandoverLog[]>([]);
+
+  useEffect(() => {
+    if (apiProducts.length > 0) {
+      setProducts(apiProducts);
+    }
+  }, [apiProducts, setProducts]);
+
+  useEffect(() => {
+    if (apiSchedule.length > 0) {
+      setSchedule(apiSchedule);
+    }
+  }, [apiSchedule, setSchedule]);
+
+  useEffect(() => {
+    if (apiProducts.length > 0 && apiReminders.length > 0) {
+      const expiryReminders = generateExpiryReminders(apiProducts, apiReminders);
+      setReminders(expiryReminders);
+    }
+  }, [apiProducts, apiReminders, setReminders]);
+
+  useEffect(() => {
+    if (apiSnapshots.length > 0) {
+      setSnapshots(apiSnapshots);
+    }
+  }, [apiSnapshots, setSnapshots]);
+
+  useEffect(() => {
+    if (apiEquipment.length > 0) {
+      setEquipment(apiEquipment);
+    }
+  }, [apiEquipment]);
+
+  useEffect(() => {
+    if (apiTemperatureAlerts.length > 0) {
+      setTemperatureAlerts(apiTemperatureAlerts);
+    }
+  }, [apiTemperatureAlerts]);
+
+  useEffect(() => {
+    if (apiRepairRequests.length > 0) {
+      setRepairRequests(apiRepairRequests);
+    }
+  }, [apiRepairRequests]);
+
+  useEffect(() => {
+    if (apiPatrolRoutes.length > 0) {
+      setPatrolRoutes(apiPatrolRoutes);
+    }
+  }, [apiPatrolRoutes]);
+
+  useEffect(() => {
+    if (apiPatrolRecords.length > 0) {
+      setPatrolRecords(apiPatrolRecords);
+    }
+  }, [apiPatrolRecords]);
+
+  useEffect(() => {
+    if (apiAnomalyRecords.length > 0) {
+      setAnomalyRecords(apiAnomalyRecords);
+    }
+  }, [apiAnomalyRecords]);
+
+  useEffect(() => {
+    if (apiShiftRevenues.length > 0) {
+      setShiftRevenues(apiShiftRevenues);
+    }
+  }, [apiShiftRevenues]);
+
+  useEffect(() => {
+    if (apiDeliveries.length > 0) {
+      setDeliveries(apiDeliveries);
+    }
+  }, [apiDeliveries]);
+
+  useEffect(() => {
+    if (apiSuppliers.length > 0) {
+      setSuppliers(apiSuppliers);
+    }
+  }, [apiSuppliers]);
+
+  useEffect(() => {
+    if (apiProcessingTasks.length > 0) {
+      const processed = sortProcessingTasks(
+        checkProcessingOverdue(apiProcessingTasks, getCurrentTime()),
+        getCurrentTime()
+      );
+      setProcessingTasks(processed);
+    }
+  }, [apiProcessingTasks]);
+
+  useEffect(() => {
+    if (apiProcessingStations.length > 0) {
+      setProcessingStations(apiProcessingStations);
+    }
+  }, [apiProcessingStations]);
+
+  useEffect(() => {
+    if (apiEmployees.length > 0) {
+      setEmployees(apiEmployees);
+    }
+  }, [apiEmployees]);
+
+  useEffect(() => {
+    if (apiShiftConfigs.length > 0) {
+      setShiftConfigs(apiShiftConfigs);
+    }
+  }, [apiShiftConfigs]);
+
+  useEffect(() => {
+    if (apiWorkAreas.length > 0) {
+      setWorkAreas(apiWorkAreas);
+    }
+  }, [apiWorkAreas]);
+
+  useEffect(() => {
+    if (apiShiftAssignments.length > 0) {
+      setShiftAssignments(apiShiftAssignments);
+    }
+  }, [apiShiftAssignments]);
+
+  useEffect(() => {
+    if (apiAttendanceRecords.length > 0) {
+      setAttendanceRecords(apiAttendanceRecords);
+    }
+  }, [apiAttendanceRecords]);
+
+  useEffect(() => {
+    if (apiScrapItems.length > 0) {
+      setScrapItems(apiScrapItems);
+    }
+  }, [apiScrapItems]);
+
+  useEffect(() => {
+    if (apiHandoverLogs.length > 0) {
+      setHandoverLogs(apiHandoverLogs);
+    }
+  }, [apiHandoverLogs]);
 
   const displayProducts = useMemo(() => {
     return selectedSnapshot ? selectedSnapshot.products : products;
@@ -446,6 +609,39 @@ export default function App() {
       safetyStockRatio: 0.3,
     });
   }, [products, snapshots]);
+
+  const isInitialLoading = loading && products.length === 0;
+  const hasLoadError = error && products.length === 0;
+
+  if (isInitialLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto" />
+          <p className="text-gray-600">正在加载数据...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasLoadError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md mx-auto p-6 bg-white rounded-xl shadow-lg">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
+          <h2 className="text-lg font-semibold text-gray-800">数据加载失败</h2>
+          <p className="text-gray-500 text-sm">{error}</p>
+          <button
+            onClick={reloadAll}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            重新加载
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">

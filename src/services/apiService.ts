@@ -1,5 +1,6 @@
 import { config } from '../config';
 import { mockDelay } from '../utils/request';
+import { request } from '../utils/request';
 import { createModuleLogger } from '../utils/logger';
 import {
   mockProducts,
@@ -52,7 +53,7 @@ import type {
 
 const logger = createModuleLogger('apiService');
 
-interface ApiResult<T> {
+export interface ApiResult<T> {
   success: boolean;
   data?: T;
   error?: string;
@@ -62,6 +63,27 @@ const wrapMock = async <T>(data: T, label: string): Promise<ApiResult<T>> => {
   logger.debug(`[Mock] ${label}`);
   const result = await mockDelay(data);
   return { success: true, data: result };
+};
+
+const handleApiResponse = async <T>(
+  apiCall: Promise<{ code: number; message: string; data: T }>,
+  label: string
+): Promise<ApiResult<T>> => {
+  try {
+    logger.debug(`[API] ${label}`);
+    const response = await apiCall;
+    if (response.code === 0 || response.code === 200) {
+      return { success: true, data: response.data };
+    }
+    logger.warn(`[API] ${label} failed: ${response.message}`);
+    return { success: false, error: response.message };
+  } catch (error) {
+    logger.error(`[API] ${label} error:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '请求失败',
+    };
+  }
 };
 
 const mockApi = {
@@ -133,118 +155,142 @@ const mockApi = {
 };
 
 const realApi = {
-  getProducts: async (): Promise<ApiResult<Product[]>> => {
-    logger.debug('Fetching products from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getProducts: (): Promise<ApiResult<Product[]>> =>
+    handleApiResponse(
+      request.get<Product[]>('/products'),
+      'getProducts'
+    ),
 
-  getSchedule: async (): Promise<ApiResult<ScheduleItem[]>> => {
-    logger.debug('Fetching schedule from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getSchedule: (): Promise<ApiResult<ScheduleItem[]>> =>
+    handleApiResponse(
+      request.get<ScheduleItem[]>('/schedule'),
+      'getSchedule'
+    ),
 
-  getReminders: async (): Promise<ApiResult<Reminder[]>> => {
-    logger.debug('Fetching reminders from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getReminders: (): Promise<ApiResult<Reminder[]>> =>
+    handleApiResponse(
+      request.get<Reminder[]>('/reminders'),
+      'getReminders'
+    ),
 
-  getHistoricalSnapshots: async (): Promise<ApiResult<StockSnapshot[]>> => {
-    logger.debug('Fetching historical snapshots from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getHistoricalSnapshots: (): Promise<ApiResult<StockSnapshot[]>> =>
+    handleApiResponse(
+      request.get<StockSnapshot[]>('/snapshots'),
+      'getHistoricalSnapshots'
+    ),
 
-  getShiftRevenues: async (): Promise<ApiResult<ShiftRevenue[]>> => {
-    logger.debug('Fetching shift revenues from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getShiftRevenues: (): Promise<ApiResult<ShiftRevenue[]>> =>
+    handleApiResponse(
+      request.get<ShiftRevenue[]>('/shift-revenues'),
+      'getShiftRevenues'
+    ),
 
-  getSuppliers: async (): Promise<ApiResult<Supplier[]>> => {
-    logger.debug('Fetching suppliers from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getSuppliers: (): Promise<ApiResult<Supplier[]>> =>
+    handleApiResponse(
+      request.get<Supplier[]>('/suppliers'),
+      'getSuppliers'
+    ),
 
-  getDeliveries: async (): Promise<ApiResult<DeliveryAppointment[]>> => {
-    logger.debug('Fetching deliveries from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getDeliveries: (): Promise<ApiResult<DeliveryAppointment[]>> =>
+    handleApiResponse(
+      request.get<DeliveryAppointment[]>('/deliveries'),
+      'getDeliveries'
+    ),
 
-  getProcessingTasks: async (): Promise<ApiResult<ProcessingTask[]>> => {
-    logger.debug('Fetching processing tasks from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getProcessingTasks: (): Promise<ApiResult<ProcessingTask[]>> =>
+    handleApiResponse(
+      request.get<ProcessingTask[]>('/processing/tasks'),
+      'getProcessingTasks'
+    ),
 
-  getProcessingStations: async (): Promise<ApiResult<ProcessingStation[]>> => {
-    logger.debug('Fetching processing stations from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getProcessingStations: (): Promise<ApiResult<ProcessingStation[]>> =>
+    handleApiResponse(
+      request.get<ProcessingStation[]>('/processing/stations'),
+      'getProcessingStations'
+    ),
 
-  getEmployees: async (): Promise<ApiResult<Employee[]>> => {
-    logger.debug('Fetching employees from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getEmployees: (): Promise<ApiResult<Employee[]>> =>
+    handleApiResponse(
+      request.get<Employee[]>('/employees'),
+      'getEmployees'
+    ),
 
-  getShiftConfigs: async (): Promise<ApiResult<ShiftConfig[]>> => {
-    logger.debug('Fetching shift configs from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getShiftConfigs: (): Promise<ApiResult<ShiftConfig[]>> =>
+    handleApiResponse(
+      request.get<ShiftConfig[]>('/shift-configs'),
+      'getShiftConfigs'
+    ),
 
-  getWorkAreas: async (): Promise<ApiResult<WorkArea[]>> => {
-    logger.debug('Fetching work areas from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getWorkAreas: (): Promise<ApiResult<WorkArea[]>> =>
+    handleApiResponse(
+      request.get<WorkArea[]>('/work-areas'),
+      'getWorkAreas'
+    ),
 
-  getShiftAssignments: async (): Promise<ApiResult<ShiftAssignment[]>> => {
-    logger.debug('Fetching shift assignments from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getShiftAssignments: (): Promise<ApiResult<ShiftAssignment[]>> =>
+    handleApiResponse(
+      request.get<ShiftAssignment[]>('/shift-assignments'),
+      'getShiftAssignments'
+    ),
 
-  getAttendanceRecords: async (): Promise<ApiResult<AttendanceRecord[]>> => {
-    logger.debug('Fetching attendance records from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getAttendanceRecords: (): Promise<ApiResult<AttendanceRecord[]>> =>
+    handleApiResponse(
+      request.get<AttendanceRecord[]>('/attendance-records'),
+      'getAttendanceRecords'
+    ),
 
-  getScrapItems: async (): Promise<ApiResult<ScrapItem[]>> => {
-    logger.debug('Fetching scrap items from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getScrapItems: (): Promise<ApiResult<ScrapItem[]>> =>
+    handleApiResponse(
+      request.get<ScrapItem[]>('/scrap-items'),
+      'getScrapItems'
+    ),
 
-  getHandoverLogs: async (): Promise<ApiResult<ShiftHandoverLog[]>> => {
-    logger.debug('Fetching handover logs from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getHandoverLogs: (): Promise<ApiResult<ShiftHandoverLog[]>> =>
+    handleApiResponse(
+      request.get<ShiftHandoverLog[]>('/handover-logs'),
+      'getHandoverLogs'
+    ),
 
-  getPatrolRoutes: async (): Promise<ApiResult<PatrolRoute[]>> => {
-    logger.debug('Fetching patrol routes from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getPatrolRoutes: (): Promise<ApiResult<PatrolRoute[]>> =>
+    handleApiResponse(
+      request.get<PatrolRoute[]>('/patrol/routes'),
+      'getPatrolRoutes'
+    ),
 
-  getPatrolRecords: async (): Promise<ApiResult<PatrolRecord[]>> => {
-    logger.debug('Fetching patrol records from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getPatrolRecords: (): Promise<ApiResult<PatrolRecord[]>> =>
+    handleApiResponse(
+      request.get<PatrolRecord[]>('/patrol/records'),
+      'getPatrolRecords'
+    ),
 
-  getAnomalyRecords: async (): Promise<ApiResult<AnomalyRecord[]>> => {
-    logger.debug('Fetching anomaly records from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getAnomalyRecords: (): Promise<ApiResult<AnomalyRecord[]>> =>
+    handleApiResponse(
+      request.get<AnomalyRecord[]>('/anomalies'),
+      'getAnomalyRecords'
+    ),
 
-  getEquipment: async (): Promise<ApiResult<Equipment[]>> => {
-    logger.debug('Fetching equipment from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getEquipment: (): Promise<ApiResult<Equipment[]>> =>
+    handleApiResponse(
+      request.get<Equipment[]>('/equipment'),
+      'getEquipment'
+    ),
 
-  getTemperatureAlerts: async (): Promise<ApiResult<TemperatureAlert[]>> => {
-    logger.debug('Fetching temperature alerts from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getTemperatureAlerts: (): Promise<ApiResult<TemperatureAlert[]>> =>
+    handleApiResponse(
+      request.get<TemperatureAlert[]>('/temperature-alerts'),
+      'getTemperatureAlerts'
+    ),
 
-  getRepairRequests: async (): Promise<ApiResult<RepairRequest[]>> => {
-    logger.debug('Fetching repair requests from API...');
-    return { success: false, error: 'API not implemented' };
-  },
+  getRepairRequests: (): Promise<ApiResult<RepairRequest[]>> =>
+    handleApiResponse(
+      request.get<RepairRequest[]>('/repair-requests'),
+      'getRepairRequests'
+    ),
 };
 
-export const apiService = config.useMock ? mockApi : realApi;
+export type ApiService = typeof mockApi;
+
+export const apiService: ApiService = config.useMock ? mockApi : realApi;
 
 export const isMockEnabled = (): boolean => config.useMock;
 
