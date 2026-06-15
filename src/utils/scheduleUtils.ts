@@ -8,6 +8,12 @@ const rawTimeToMinutes = (time: string): number => {
   return hours * 60 + minutes;
 };
 
+export const getNextStatus = (current: 'pending' | 'in_progress' | 'completed'): 'pending' | 'in_progress' | 'completed' => {
+  if (current === 'pending') return 'in_progress';
+  if (current === 'in_progress') return 'completed';
+  return 'pending';
+};
+
 export const detectCrossMidnight = (times: string[]): boolean => {
   if (times.length < 2) return false;
   const minutes = times.map(rawTimeToMinutes);

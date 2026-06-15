@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Clock, CheckCircle2, Circle, PlayCircle, AlertTriangle, Clock3, Lock, Link2, Settings } from 'lucide-react';
 import type { ScheduleItem } from '../types';
-import { getCurrentTime, calculateTimeDifference, sortScheduleByTime } from '../utils/scheduleUtils';
+import { getCurrentTime, calculateTimeDifference, sortScheduleByTime, getNextStatus } from '../utils/scheduleUtils';
 import DependencyModal from './DependencyModal';
 
 interface ScheduleTimelineProps {
@@ -25,11 +25,7 @@ export default function ScheduleTimeline({ schedule, onStatusChange, onPrerequis
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ScheduleItem | null>(null);
 
-  const getNextStatus = (current: 'pending' | 'in_progress' | 'completed') => {
-    if (current === 'pending') return 'in_progress';
-    if (current === 'in_progress') return 'completed';
-    return 'pending';
-  };
+
 
   const handleOpenDependencyModal = (task: ScheduleItem) => {
     setEditingTask(task);
