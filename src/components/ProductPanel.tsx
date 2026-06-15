@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Coffee, Cookie, Clock, Search, Filter, AlertTriangle, AlertCircle, Bell, MoreVertical, PackagePlus, ClipboardList, ArrowRightCircle, ClipboardCheck, Check } from 'lucide-react';
 import type { Product } from '../types';
 import { getExpiryWarningLevel, getExpiryWarningConfig, getDaysUntilExpiry } from '../utils/expiryUtils';
+import { useInventory } from '../hooks/useInventory';
 
 interface ProductPanelProps {
   filteredProducts: Product[];
@@ -43,6 +44,8 @@ export default function ProductPanel({
   const [openMenuProductId, setOpenMenuProductId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const { getStockStatus } = useInventory(filteredProducts);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -54,13 +57,6 @@ export default function ProductPanel({
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openMenuProductId]);
-
-  const getStockStatus = (stock: number, maxStock: number) => {
-    const percentage = (stock / maxStock) * 100;
-    if (percentage < 30) return { color: 'bg-red-500', status: '库存紧张' };
-    if (percentage < 60) return { color: 'bg-yellow-500', status: '库存偏低' };
-    return { color: 'bg-green-500', status: '库存充足' };
-  };
 
   const handleMenuAction = (action: (...args: any[]) => void, args: any[], e: React.MouseEvent) => {
     e.stopPropagation();

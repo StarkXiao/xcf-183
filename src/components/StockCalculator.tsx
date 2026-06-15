@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Package, TrendingDown, AlertTriangle, X, Info, ClipboardList, ClipboardCheck, PackagePlus, ArrowRightCircle } from 'lucide-react';
 import type { Product } from '../types';
+import { useInventory } from '../hooks/useInventory';
 
 interface StockCalculatorProps {
   products: Product[];
@@ -122,35 +123,31 @@ function OverCapacityModal({ product, requestedAmount, maxAllowed, onConfirm, on
 export default function StockCalculator({ products, selectedProduct, onReplenish, onQuickRestock, onMarkOutOfStock, onMoveToExpiring }: StockCalculatorProps) {
   const [replenishAmount, setReplenishAmount] = useState(0);
   const [showOverCapacityModal, setShowOverCapacityModal] = useState(false);
+  const [prevProductId, setPrevProductId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const { lowStockProducts, expiredProducts, outOfStockProducts, calculateReplenish, isOverCapacity } = useInventory(products);
+
+  const currentProductId = selectedProduct?.id ?? null;
+  if (prevProductId !== currentProductId) {
+    setPrevProductId(currentProductId);
+    setReplenishAmount(selectedProduct ? selectedProduct.maxStock - selectedProduct.stock : 0);
+  }
+
+  const getSuggestedReplenish = () => {
     if (selectedProduct) {
-      const suggestedAmount = selectedProduct.maxStock - selectedProduct.stock;
-      setReplenishAmount(suggestedAmount);
-    } else {
-      setReplenishAmount(0);
-    }
-  }, [selectedProduct]);
-
-  const lowStockProducts = products.filter(p => p.stock < p.maxStock * 0.3);
-  const expiringProducts = products.filter(p => p.expirationDate && new Date(p.expirationDate) <= new Date());
-  const outOfStockProducts = products.filter(p => !!p.outOfStockRegistered);
-
-  const calculateReplenish = () => {
-    if (selectedProduct) {
-      return selectedProduct.maxStock - selectedProduct.stock;
+      return calculateReplenish(selectedProduct);
     }
     return 0;
   };
 
-  const isOverCapacity = () => {
+  const checkIsOverCapacity = () => {
     if (!selectedProduct) return false;
-    return selectedProduct.stock + replenishAmount > selectedProduct.maxStock;
+    return isOverCapacity(selectedProduct, replenishAmount);
   };
 
   const handleReplenish = () => {
     if (selectedProduct && replenishAmount > 0) {
-      if (isOverCapacity()) {
+      if (checkIsOverCapacity()) {
         setShowOverCapacityModal(true);
       } else {
         confirmReplenish();
@@ -160,7 +157,7 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
 
   const confirmReplenish = () => {
     if (selectedProduct && replenishAmount > 0) {
-      const actualAmount = Math.min(replenishAmount, calculateReplenish());
+      const actualAmount = Math.min(replenishAmount, getSuggestedReplenish());
       onReplenish(selectedProduct.id, actualAmount);
       setReplenishAmount(0);
       setShowOverCapacityModal(false);
@@ -209,7 +206,7 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => onQuickRestock && onQuickRestock(selectedProduct.id)}
-                disabled={calculateReplenish() <= 0}
+                disabled={getSuggestedReplenish() <= 0}
                 className="flex flex-col items-center gap-1 p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors disabled:bg-gray-50 disabled:text-gray-300 disabled:cursor-not-allowed"
               >
                 <PackagePlus className="w-4 h-4" />
@@ -243,10 +240,10 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${isOverCapacity() ? 'bg-amber-50' : 'bg-blue-50'}`}>
+          <div className={`p-4 rounded-lg ${checkIsOverCapacity() ? 'bg-amber-50' : 'bg-blue-50'}`}>
             <div className="flex items-center justify-between">
               <span className="text-gray-700">建议补货数量</span>
-              <span className="text-xl font-bold text-blue-600">{calculateReplenish()}</span>
+              <span className="text-xl font-bold text-blue-600">{getSuggestedReplenish()}</span>
             </div>
             <div className="mt-3">
               <label className="block text-sm text-gray-600 mb-1">输入补货数量</label>
@@ -257,20 +254,20 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
                   value={replenishAmount}
                   onChange={(e) => setReplenishAmount(Number(e.target.value) || 0)}
                   className={`flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                    isOverCapacity() 
+                    checkIsOverCapacity() 
                       ? 'border-amber-400 focus:ring-amber-500 bg-amber-50' 
                       : 'border-gray-200 focus:ring-blue-500'
                   }`}
                   placeholder="输入数量"
                 />
                 <button
-                  onClick={() => setReplenishAmount(calculateReplenish())}
+                  onClick={() => setReplenishAmount(getSuggestedReplenish())}
                   className="px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                 >
                   最大值
                 </button>
               </div>
-              {isOverCapacity() && (
+              {checkIsOverCapacity() && (
                 <div className="mt-2 flex items-center gap-1.5 text-amber-700 text-sm">
                   <AlertTriangle className="w-4 h-4" />
                   <span>补货量将超过货架容量</span>
@@ -281,12 +278,12 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
               onClick={handleReplenish}
               disabled={replenishAmount <= 0}
               className={`w-full mt-4 py-3 text-white font-semibold rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${
-                isOverCapacity() 
+                checkIsOverCapacity() 
                   ? 'bg-amber-600 hover:bg-amber-700' 
                   : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
-              {isOverCapacity() ? '确认补货（超量）' : '确认补货'}
+              {checkIsOverCapacity() ? '确认补货（超量）' : '确认补货'}
             </button>
           </div>
         </div>
@@ -310,7 +307,7 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
             <TrendingDown className="w-5 h-5 text-orange-500" />
             <div>
               <p className="text-xs text-gray-500">即将过期</p>
-              <p className="text-lg font-bold text-orange-600">{expiringProducts.length}</p>
+              <p className="text-lg font-bold text-orange-600">{expiredProducts.length}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
@@ -327,7 +324,7 @@ export default function StockCalculator({ products, selectedProduct, onReplenish
         <OverCapacityModal
           product={selectedProduct}
           requestedAmount={replenishAmount}
-          maxAllowed={calculateReplenish()}
+          maxAllowed={getSuggestedReplenish()}
           onConfirm={confirmReplenish}
           onCancel={handleCancelOverCapacity}
         />

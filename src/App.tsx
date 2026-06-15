@@ -30,8 +30,11 @@ import {
   checkTaskDependencies,
   isTaskBlocked,
 } from './utils/scheduleUtils';
-import { getExpiryStatistics, generateExpiryReminders, isExpiringProduct } from './utils/expiryUtils';
+import { generateExpiryReminders } from './utils/expiryUtils';
 import { formatDate, createSnapshot, saveSnapshot, loadAllSnapshots } from './utils/historyUtils';
+import { useProductFilter } from './hooks/useProductFilter';
+import { useInventory } from './hooks/useInventory';
+import { useExpiration } from './hooks/useExpiration';
 import {
   getDeliveryNo,
   generateQRCode,
@@ -103,22 +106,13 @@ export default function App() {
     return selectedSnapshot ? selectedSnapshot.schedule : schedule;
   }, [selectedSnapshot, schedule]);
 
-  const effectiveReminders = useMemo(() => {
-    if (selectedSnapshot) return selectedSnapshot.reminders;
-    return generateExpiryReminders(products, reminders);
-  }, [selectedSnapshot, products, reminders]);
+  const { effectiveReminders, expiryStatistics } = useExpiration(products, reminders, selectedSnapshot);
 
   const isHistoryMode = !!selectedHistoryDate;
 
-  const filteredProducts = useMemo(() => {
-    return displayProducts.filter((product) => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      if (selectedCategory === 'all') return matchesSearch;
-      if (selectedCategory === 'expiring') return matchesSearch && (isExpiringProduct(product) || product.category === 'expiring');
-      if (selectedCategory === 'out_of_stock') return matchesSearch && !!product.outOfStockRegistered;
-      return matchesSearch && product.category === selectedCategory;
-    });
-  }, [displayProducts, selectedCategory, searchTerm]);
+  const { filteredProducts } = useProductFilter(displayProducts, selectedCategory, searchTerm);
+
+  const inventory = useInventory(filteredProducts);
 
   const checkAndUpdateSchedule = useCallback(() => {
     if (isHistoryMode) return;
@@ -157,8 +151,6 @@ export default function App() {
   }, [isHistoryMode, checkAndUpdateSchedule]);
 
   const statistics = useMemo<Statistics>(() => {
-    const lowStockCount = filteredProducts.filter(p => p.stock < p.maxStock * 0.3).length;
-    const expiryStats = getExpiryStatistics(filteredProducts);
     const completedTasks = displaySchedule.filter(s => s.status === 'completed').length;
     const overdueTasks = displaySchedule.filter(s => s.isOverdue && s.status === 'pending').length;
     const estimatedFinishTime = isHistoryMode
@@ -167,18 +159,18 @@ export default function App() {
 
     return {
       totalProducts: filteredProducts.length,
-      totalStock: filteredProducts.reduce((sum, p) => sum + p.stock, 0),
-      lowStockCount,
-      expiringCount: expiryStats.total,
-      expiringCritical: expiryStats.critical,
-      expiringWarning: expiryStats.warning,
-      expiringAttention: expiryStats.attention,
+      totalStock: inventory.totalStock,
+      lowStockCount: inventory.lowStockProducts.length,
+      expiringCount: expiryStatistics.total,
+      expiringCritical: expiryStatistics.critical,
+      expiringWarning: expiryStatistics.warning,
+      expiringAttention: expiryStatistics.attention,
       scheduledTasks: displaySchedule.length,
       completedTasks,
       overdueTasks,
       estimatedFinishTime,
     };
-  }, [filteredProducts, displaySchedule, currentTime, isHistoryMode]);
+  }, [filteredProducts, inventory.totalStock, inventory.lowStockProducts, expiryStatistics, displaySchedule, currentTime, isHistoryMode]);
 
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
