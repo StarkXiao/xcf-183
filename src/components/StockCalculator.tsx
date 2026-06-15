@@ -121,17 +121,12 @@ function OverCapacityModal({ product, requestedAmount, maxAllowed, onConfirm, on
 }
 
 export default function StockCalculator({ products, selectedProduct, onReplenish, onQuickRestock, onMarkOutOfStock, onMoveToExpiring }: StockCalculatorProps) {
-  const [replenishAmount, setReplenishAmount] = useState(0);
+  const [replenishAmount, setReplenishAmount] = useState(() =>
+    selectedProduct ? selectedProduct.maxStock - selectedProduct.stock : 0
+  );
   const [showOverCapacityModal, setShowOverCapacityModal] = useState(false);
-  const [prevProductId, setPrevProductId] = useState<string | null>(null);
 
   const { lowStockProducts, expiredProducts, outOfStockProducts, calculateReplenish, isOverCapacity } = useInventory(products);
-
-  const currentProductId = selectedProduct?.id ?? null;
-  if (prevProductId !== currentProductId) {
-    setPrevProductId(currentProductId);
-    setReplenishAmount(selectedProduct ? selectedProduct.maxStock - selectedProduct.stock : 0);
-  }
 
   const getSuggestedReplenish = () => {
     if (selectedProduct) {

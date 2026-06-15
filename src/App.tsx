@@ -19,7 +19,7 @@ import ShiftHandoverLogComponent from './components/ShiftHandoverLog';
 import ReplenishmentForecast from './components/ReplenishmentForecast';
 import NightPatrol from './components/NightPatrol';
 import EquipmentMonitor from './components/EquipmentMonitor';
-import type { Product, ScheduleItem, Reminder, Statistics, StockSnapshot, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog, PatrolRoute, PatrolRecord, AnomalyRecord, Equipment, TemperatureAlert, RepairRequest } from './types';
+import type { Product, ScheduleItem, Reminder, Statistics, ShiftRevenue, DeliveryAppointment, Supplier, DeliveryItem, DeliveryDiscrepancy, ProcessingTask, ProcessingStation, ProcessingStep, Employee, ShiftConfig, WorkArea, ShiftAssignment, AttendanceRecord, ScrapItem, ShiftHandoverLog, PatrolRoute, PatrolRecord, AnomalyRecord, Equipment, TemperatureAlert, RepairRequest } from './types';
 import { mockProducts, mockSchedule, mockReminders, mockHistoricalSnapshots, mockShiftRevenues, mockSuppliers, mockDeliveries, mockProcessingTasks, mockProcessingStations, mockEmployees, mockShiftConfigs, mockWorkAreas, mockShiftAssignments, mockAttendanceRecords, mockScrapItems, mockHandoverLogs, mockPatrolRoutes, mockPatrolRecords, mockAnomalyRecords, mockEquipment, mockTemperatureAlerts, mockRepairRequests } from './data/mockData';
 import {
   getCurrentTime,
@@ -31,10 +31,14 @@ import {
   isTaskBlocked,
 } from './utils/scheduleUtils';
 import { generateExpiryReminders } from './utils/expiryUtils';
-import { formatDate, createSnapshot, saveSnapshot, loadAllSnapshots } from './utils/historyUtils';
+import { formatDate, createSnapshot, saveSnapshot } from './utils/historyUtils';
 import { useProductFilter } from './hooks/useProductFilter';
 import { useInventory } from './hooks/useInventory';
 import { useExpiration } from './hooks/useExpiration';
+import { useProductDomain } from './hooks/useProductDomain';
+import { useScheduleDomain } from './hooks/useScheduleDomain';
+import { useReminderDomain } from './hooks/useReminderDomain';
+import { useHistoryDomain } from './hooks/useHistoryDomain';
 import {
   getDeliveryNo,
   generateQRCode,
@@ -53,24 +57,10 @@ import { generateShelfHeatmapData } from './utils/shelfHeatmapUtils';
 import { generateForecast } from './utils/forecastUtils';
 
 export default function App() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [schedule, setSchedule] = useState<ScheduleItem[]>(mockSchedule);
-  const [reminders, setReminders] = useState<Reminder[]>(() => 
-    generateExpiryReminders(mockProducts, mockReminders)
-  );
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [showReminders, setShowReminders] = useState(true);
-  const [currentTime, setCurrentTime] = useState<string>(getCurrentTime());
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [snapshots, setSnapshots] = useState<StockSnapshot[]>(() => {
-    const stored = loadAllSnapshots();
-    if (stored.length === 0) return mockHistoricalSnapshots;
-    const existingDates = new Set(mockHistoricalSnapshots.map(s => s.date));
-    const newOnes = stored.filter(s => !existingDates.has(s.date));
-    return [...mockHistoricalSnapshots, ...newOnes];
-  });
-  const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
+  const { products, setProducts, selectedProduct, setSelectedProduct, selectedCategory, setSelectedCategory, searchTerm, setSearchTerm } = useProductDomain(mockProducts);
+  const { schedule, setSchedule, currentTime, setCurrentTime } = useScheduleDomain(mockSchedule);
+  const { reminders, setReminders, showReminders, setShowReminders } = useReminderDomain(() => generateExpiryReminders(mockProducts, mockReminders));
+  const { snapshots, setSnapshots, selectedHistoryDate, setSelectedHistoryDate, selectedSnapshot, isHistoryMode } = useHistoryDomain(mockHistoricalSnapshots);
   const [activeTab, setActiveTab] = useState<'replenishment' | 'forecast' | 'reconciliation' | 'delivery' | 'processing' | 'heatmap' | 'attendance' | 'scrap' | 'handover' | 'patrol' | 'equipment'>('replenishment');
   const [equipment] = useState<Equipment[]>(mockEquipment);
   const [temperatureAlerts, setTemperatureAlerts] = useState<TemperatureAlert[]>(mockTemperatureAlerts);
@@ -93,11 +83,6 @@ export default function App() {
   const [scrapItems, setScrapItems] = useState<ScrapItem[]>(mockScrapItems);
   const [handoverLogs, setHandoverLogs] = useState<ShiftHandoverLog[]>(mockHandoverLogs);
 
-  const selectedSnapshot = useMemo(() => {
-    if (!selectedHistoryDate) return null;
-    return snapshots.find(s => s.date === selectedHistoryDate) || null;
-  }, [snapshots, selectedHistoryDate]);
-
   const displayProducts = useMemo(() => {
     return selectedSnapshot ? selectedSnapshot.products : products;
   }, [selectedSnapshot, products]);
@@ -107,8 +92,6 @@ export default function App() {
   }, [selectedSnapshot, schedule]);
 
   const { effectiveReminders, expiryStatistics } = useExpiration(products, reminders, selectedSnapshot);
-
-  const isHistoryMode = !!selectedHistoryDate;
 
   const { filteredProducts } = useProductFilter(displayProducts, selectedCategory, searchTerm);
 
@@ -140,7 +123,7 @@ export default function App() {
       }
       return sortProcessingTasks(result.updatedTasks, now);
     });
-  }, [reminders, isHistoryMode]);
+  }, [reminders, isHistoryMode, setCurrentTime, setSchedule, setReminders]);
 
   useEffect(() => {
     if (!isHistoryMode) {
@@ -785,6 +768,7 @@ export default function App() {
               </div>
               <div className="lg:col-span-3">
                 <StockCalculator 
+                  key={selectedProduct?.id}
                   products={displayProducts} 
                   selectedProduct={selectedProduct} 
                   onReplenish={handleStockUpdate}
@@ -825,6 +809,7 @@ export default function App() {
 
               <div className="lg:col-span-3">
                 <StockCalculator 
+                  key={selectedProduct?.id}
                   products={displayProducts} 
                   selectedProduct={selectedProduct} 
                   onReplenish={handleStockUpdate}
